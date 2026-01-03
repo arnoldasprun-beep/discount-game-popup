@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bouncing Ball Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <div class="score-display">
+                <span>Discount: <span id="score">0</span>%</span>
+            </div>
+            <div class="instruction-text" id="instructionText">1 Score - 1% Discount</div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- Start message overlay (only shown in preview) -->
+        <div class="start-message" id="startMessage">
+            Click to bounce
+        </div>
+        
+        <div class="game-over" id="gameOver">
+            <h2>Your Discount</h2>
+            <p> <span id="finalScore">0</span>%</p>
+            <button id="restartBtn">Play Again</button>
+            <button id="claimBestBtn">Claim Best Discount 0%</button>
+        </div>
+        
+        <div class="email-modal" id="emailModal" style="display: none;">
+            <div class="email-modal-content">
+                <h3>Enter Your Email</h3>
+                <p>Please enter your email to claim your discount:</p>
+                <div id="nameFieldsContainer" style="display: none;">
+                    <input type="text" id="firstNameInput" placeholder="First Name" />
+                    <input type="text" id="lastNameInput" placeholder="Last Name" />
+                </div>
+                <input type="email" id="emailInput" placeholder="your@email.com" />
+                <div class="email-modal-buttons">
+                    <button id="emailSubmitBtn">Submit</button>
+                    <button id="emailCancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="discount-code-modal" id="discountCodeModal" style="display: none;">
+            <div class="discount-code-modal-content">
+                <h3>Your Discount Code</h3>
+                <input type="text" id="discountCodeText" readonly />
+                <p id="discountCodeDescription"></p>
+                <button id="discountCodeCloseBtn">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
+
+

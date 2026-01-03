@@ -1,0 +1,41 @@
+<div class="game-popup-hello" style="
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  z-index: 9999;
+  max-width: 300px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+">
+  <h3 style="margin: 0 0 10px 0; font-size: 18px; font-weight: 600;">
+    👋 Hello from Game Popup App!
+  </h3>
+  <p style="margin: 0; font-size: 14px; opacity: 0.9;">
+    Theme extension is working! ✅
+  </p>
+  <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.7;">
+    Shop: {{ shop.name }}
+  </p>
+</div>
+
+<script>
+  console.log('Game Popup App - Theme Extension Loaded!');
+</script>
+
+{% schema %}
+{
+  "name": "Hello Game Popup",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
+
+
+
+
+
+

@@ -1,0 +1,465 @@
+{% comment %}
+  Game Popup App Embed - Automatically injected into storefront
+{% endcomment %}
+
+{% comment %} Sticky Button {% endcomment %}
+<div id="sticky-button-container" style="display: none;">
+  <button id="sticky-button" style="
+    position: fixed;
+    right: 0;
+    top: 50%;
+    z-index: 9999;
+    background-color: #000000;
+    color: white;
+    border: none;
+    border-radius: 0px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+    transform: rotate(-90deg) translateY(-50%);
+    transform-origin: center right;
+  ">Discount Game</button>
+</div>
+
+<div id="game-popup-container" style="display: none;">
+    <div id="game-popup-overlay" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 9998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+      <div id="game-popup-content" style="
+        background: white;
+        border-radius: 0px;
+        padding: 0rem;
+        max-width: 70%;
+        width: 900px;
+        max-height: 90%;
+        height: 700px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        display: flex;
+        flex-direction: column;
+      ">
+        <button id="game-popup-close" style="
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: none;
+          border: none;
+          font-size: 24px;
+          cursor: pointer;
+          color: #666;
+          z-index: 1001;
+        ">×</button>
+
+        <div id="game-popup-logo" style="
+          display: none;
+          background: white;
+          padding: 20px 20px;
+          border-bottom: 1px solid #e0e0e0;
+          flex-shrink: 0;
+          align-items: center;
+          justify-content: center;
+        ">
+          <img id="game-popup-logo-img" src="" alt="Logo" style="
+            max-width: 200px;
+            max-height: 100px;
+            object-fit: contain;
+          " />
+        </div>
+
+        <div id="game-popup-header" style="
+          background: white;
+          padding: 20px 20px;
+          border-bottom: 1px solid #e0e0e0;
+          flex-shrink: 0;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <h2 id="game-popup-title" style="
+            text-align: center;
+            margin: 0;
+            color: #333;
+            font-size: 1.8em;
+          ">Discount Game</h2>
+        </div>
+
+        <div id="email-form-container" style="display: none; flex: 1; padding: 20px; overflow-y: auto; background: white;">
+            <h2 style="margin-top: 0;">Sign up to play!</h2>
+            <form id="email-signup-form">
+              <input 
+                type="email" 
+                id="player-email" 
+                placeholder="Enter your email"
+                required
+                style="
+                  width: 100%;
+                  padding: 0.75rem;
+                  margin-bottom: 1rem;
+                  border: 1px solid #ccc;
+                  border-radius: 0px;
+                  font-size: 1rem;
+                "
+              />
+              <button 
+                type="submit"
+                style="
+                  width: 100%;
+                  padding: 0.75rem;
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white;
+                  border: none;
+                  border-radius: 0px;
+                  font-size: 1rem;
+                  cursor: pointer;
+                  font-weight: bold;
+                "
+              >
+                Start Playing
+              </button>
+            </form>
+          </div>
+
+        <div id="game-container" style="display: none; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+          <iframe 
+            id="game-iframe" 
+            src="" 
+            style="
+              width: 100%;
+              height: 100%;
+              border: none;
+              border-radius: 0px;
+              flex: 1;
+            "
+          ></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+  
+  @media (max-width: 768px) {
+    #game-popup-content {
+      max-width: 85% !important;
+      height: 75vh !important;
+    }
+  }
+</style>
+
+  <script>
+    (function() {
+      const shop = '{{ shop.permanent_domain }}';
+      const appUrl = 'https://trialapp.traffishow.com'; // Will be replaced with deployed URL
+      
+      // TEMPORARY: Disabled localStorage check for testing
+      // Check if popup should show (not shown if already dismissed today)
+      // const popupDismissed = localStorage.getItem('game-popup-dismissed-' + shop);
+      // const today = new Date().toDateString();
+      // 
+      // if (popupDismissed === today) {
+      //   return; // Don't show if dismissed today
+      // }
+
+      // Fetch game settings from API
+      fetch(appUrl + '/api/settings?shop=' + shop)
+        .then(response => response.json())
+        .then(data => {
+          if (!data.enabled) {
+            return; // Don't show if disabled
+          }
+
+          const gameType = data.selectedGame || 'bouncing-ball';
+          const requireEmailToClaim = data.requireEmailToClaim !== undefined ? data.requireEmailToClaim : false;
+          const requireName = data.requireName !== undefined ? data.requireName : false;
+          const popupText = data.popupText || 'Discount Game';
+          const mainText = data.mainText || 'Discount Game';
+          const mainTextColor = data.mainTextColor || '#000000';
+          const mainTextSize = data.mainTextSize || '24';
+          const mainTextBgColor = data.mainTextBgColor || '#ffffff';
+          const mainTextWeight = data.mainTextWeight || '600';
+          const borderRadius = data.borderRadius !== undefined ? data.borderRadius : 10;
+          const gameEndBorderRadius = data.gameEndBorderRadius !== undefined ? data.gameEndBorderRadius : 10;
+          const emailModalBorderRadius = data.emailModalBorderRadius !== undefined ? data.emailModalBorderRadius : 10;
+          const discountModalBorderRadius = data.discountModalBorderRadius !== undefined ? data.discountModalBorderRadius : 10;
+          const backgroundColor = data.backgroundColor || '#ffffff';
+          const ballColor = data.ballColor || '#000000';
+          const obstacleColor = data.obstacleColor || '#ff0000';
+          const gameDifficulty = data.gameDifficulty !== undefined ? data.gameDifficulty : 50;
+          const maxDiscount = data.maxDiscount || '100';
+          const countdownTime = data.countdownTime !== undefined ? data.countdownTime : 10;
+          const claimBestButtonText = data.claimBestButtonText || 'Claim Best Discount';
+          const claimBestButtonTextColor = data.claimBestButtonTextColor || '#ffffff';
+          const claimBestButtonTextSize = data.claimBestButtonTextSize || '16';
+          const claimBestButtonTextWeight = data.claimBestButtonTextWeight || '500';
+          const gameEndTabBgColor = data.gameEndTabBgColor || '#ffffff';
+          const buttonBgColor = data.buttonBgColor || '#000000';
+          const claimBestButtonBgColor = data.claimBestButtonBgColor || '#000000';
+          const logoUrl = data.logoUrl || null;
+          console.log('Logo URL from API:', logoUrl); // Debug logging
+          
+          // Sticky Button Settings
+          const showStickyButton = data.showStickyButton !== undefined ? data.showStickyButton : false;
+          const stickyButtonText = data.stickyButtonText || 'Discount Game';
+          const stickyButtonColor = data.stickyButtonColor || '#000000';
+          const stickyButtonShowOnDesktop = data.stickyButtonShowOnDesktop !== undefined ? data.stickyButtonShowOnDesktop : true;
+          const stickyButtonShowOnMobile = data.stickyButtonShowOnMobile !== undefined ? data.stickyButtonShowOnMobile : true;
+          
+          // Show sticky button if enabled
+          if (showStickyButton) {
+            const stickyButtonContainer = document.getElementById('sticky-button-container');
+            const stickyButton = document.getElementById('sticky-button');
+            
+            if (stickyButtonContainer && stickyButton) {
+              // Check if should show on current device
+              const isMobile = window.innerWidth <= 768;
+              const shouldShow = (isMobile && stickyButtonShowOnMobile) || (!isMobile && stickyButtonShowOnDesktop);
+              
+              if (shouldShow) {
+                stickyButtonContainer.style.display = 'block';
+                stickyButton.textContent = stickyButtonText;
+                stickyButton.style.backgroundColor = stickyButtonColor;
+                
+                // Click handler to show popup
+                stickyButton.addEventListener('click', () => {
+                  const container = document.getElementById('game-popup-container');
+                  if (container) {
+                    container.style.display = 'block';
+                  }
+                });
+              }
+            }
+          }
+          
+          // Show popup after a delay
+          setTimeout(() => {
+            const container = document.getElementById('game-popup-container');
+            const overlay = document.getElementById('game-popup-overlay');
+            const emailForm = document.getElementById('email-form-container');
+            const gameContainer = document.getElementById('game-container');
+            const gameIframe = document.getElementById('game-iframe');
+            const closeBtn = document.getElementById('game-popup-close');
+            const emailFormEl = document.getElementById('email-signup-form');
+            const emailInput = document.getElementById('player-email');
+            const popupTitle = document.getElementById('game-popup-title');
+            const popupContent = document.getElementById('game-popup-content');
+            const popupHeader = document.getElementById('game-popup-header');
+            const popupLogo = document.getElementById('game-popup-logo');
+            const popupLogoImg = document.getElementById('game-popup-logo-img');
+
+            if (!container) return;
+            
+            // Show logo if logoUrl is provided
+            if (logoUrl && logoUrl.trim() !== '' && popupLogo && popupLogoImg) {
+              console.log('Setting logo:', logoUrl); // Debug logging
+              popupLogo.style.display = 'flex';
+              popupLogoImg.src = logoUrl;
+              
+              // Handle image load success
+              popupLogoImg.onload = function() {
+                console.log('Logo image loaded successfully');
+              };
+              
+              // Handle image load errors
+              popupLogoImg.onerror = function() {
+                console.error('Failed to load logo image:', logoUrl);
+                if (popupLogo) {
+                  popupLogo.style.display = 'none';
+                }
+              };
+            } else {
+              console.log('Logo not shown - logoUrl:', logoUrl, 'popupLogo:', popupLogo, 'popupLogoImg:', popupLogoImg);
+              if (popupLogo) {
+                popupLogo.style.display = 'none';
+              }
+            }
+
+            container.style.display = 'block';
+
+            // Set popup title text and styles
+            if (popupTitle) {
+              popupTitle.textContent = mainText;
+              popupTitle.style.color = mainTextColor;
+              popupTitle.style.fontSize = mainTextSize + 'px';
+              popupTitle.style.lineHeight = mainTextSize + 'px';
+              popupTitle.style.margin = '0';
+              popupTitle.style.padding = '0';
+              popupTitle.style.fontFamily = "'Poppins', sans-serif";
+              popupTitle.style.fontWeight = mainTextWeight.toString();
+              popupTitle.style.textAlign = 'center';
+              popupTitle.style.width = '100%';
+            }
+
+            // Set popup header background color and flexbox centering
+            if (popupHeader) {
+              popupHeader.style.backgroundColor = mainTextBgColor;
+              popupHeader.style.borderBottom = 'none';
+              popupHeader.style.display = 'flex';
+              popupHeader.style.alignItems = 'center';
+              popupHeader.style.justifyContent = 'center';
+            }
+
+            // Set popup border radius
+            if (popupContent) {
+              popupContent.style.borderRadius = borderRadius + 'px';
+            }
+
+            // Set game iframe source with color parameters, difficulty, maxDiscount, countdownTime, and text settings
+            const gamePath = appUrl + '/games/' + gameType + '/index.html' +
+              '?bg=' + encodeURIComponent(backgroundColor) +
+              '&ball=' + encodeURIComponent(ballColor) +
+              '&obstacle=' + encodeURIComponent(obstacleColor) +
+              '&difficulty=' + encodeURIComponent(gameDifficulty) +
+              '&maxDiscount=' + encodeURIComponent(maxDiscount) +
+              '&borderRadius=' + encodeURIComponent(borderRadius) +
+              '&gameEndBorderRadius=' + encodeURIComponent(gameEndBorderRadius) +
+              '&emailModalBorderRadius=' + encodeURIComponent(emailModalBorderRadius) +
+              '&discountModalBorderRadius=' + encodeURIComponent(discountModalBorderRadius) +
+              '&mainText=' + encodeURIComponent(data.mainText || 'Discount Game') +
+              '&mainTextSize=' + encodeURIComponent(data.mainTextSize || '24') +
+              '&mainTextColor=' + encodeURIComponent(data.mainTextColor || '#000000') +
+              '&mainTextBgColor=' + encodeURIComponent(data.mainTextBgColor || '#ffffff') +
+              '&secondaryText=' + encodeURIComponent(data.secondaryText || 'Discount:') +
+              '&secondaryTextColor=' + encodeURIComponent(data.secondaryTextColor || '#000000') +
+              '&secondaryTextSize=' + encodeURIComponent(data.secondaryTextSize || '18') +
+              '&secondaryTextWeight=' + encodeURIComponent(data.secondaryTextWeight || '400') +
+              '&rulesText=' + encodeURIComponent(data.rulesText || '1 Score - 1% Discount') +
+              '&rulesTextColor=' + encodeURIComponent(data.rulesTextColor || '#000000') +
+              '&rulesTextSize=' + encodeURIComponent(data.rulesTextSize || '14') +
+              '&rulesTextWeight=' + encodeURIComponent(data.rulesTextWeight || '400') +
+              '&instructionText=' + encodeURIComponent(data.instructionText || 'Click to Bounce') +
+              '&instructionTextColor=' + encodeURIComponent(data.instructionTextColor || '#000000') +
+              '&instructionTextSize=' + encodeURIComponent(data.instructionTextSize || '16') +
+              '&instructionTextWeight=' + encodeURIComponent(data.instructionTextWeight || '400') +
+              '&gameEndText=' + encodeURIComponent(data.gameEndText || 'Your Discount') +
+              '&gameEndTextColor=' + encodeURIComponent(data.gameEndTextColor || '#000000') +
+              '&gameEndTextSize=' + encodeURIComponent(data.gameEndTextSize || '20') +
+              '&gameEndTextWeight=' + encodeURIComponent(data.gameEndTextWeight || '400') +
+              '&buttonText=' + encodeURIComponent(data.buttonText || 'Play Again') +
+              '&buttonTextColor=' + encodeURIComponent(data.buttonTextColor || '#ffffff') +
+              '&buttonTextSize=' + encodeURIComponent(data.buttonTextSize || '16') +
+              '&buttonTextWeight=' + encodeURIComponent(data.buttonTextWeight || '500') +
+              '&claimBestButtonText=' + encodeURIComponent(data.claimBestButtonText || 'Claim Best Discount') +
+              '&claimBestButtonTextColor=' + encodeURIComponent(data.claimBestButtonTextColor || '#ffffff') +
+              '&claimBestButtonTextSize=' + encodeURIComponent(data.claimBestButtonTextSize || '16') +
+              '&claimBestButtonTextWeight=' + encodeURIComponent(data.claimBestButtonTextWeight || '500') +
+              '&gameEndTabBgColor=' + encodeURIComponent(data.gameEndTabBgColor || '#ffffff') +
+              '&buttonBgColor=' + encodeURIComponent(data.buttonBgColor || '#000000') +
+              '&claimBestButtonBgColor=' + encodeURIComponent(data.claimBestButtonBgColor || '#000000') +
+              '&requireEmailToClaim=' + encodeURIComponent(requireEmailToClaim ? 'true' : 'false') +
+              '&requireName=' + encodeURIComponent(requireName ? 'true' : 'false') +
+              '&shop=' + encodeURIComponent(shop) +
+              // Email Modal Settings
+              '&emailModalHeadingText=' + encodeURIComponent(data.emailModalHeadingText || 'Enter Your Email') +
+              '&emailModalHeadingColor=' + encodeURIComponent(data.emailModalHeadingColor || '#333333') +
+              '&emailModalHeadingSize=' + encodeURIComponent(data.emailModalHeadingSize || '20') +
+              '&emailModalHeadingWeight=' + encodeURIComponent(data.emailModalHeadingWeight || '600') +
+              '&emailModalDescriptionText=' + encodeURIComponent(data.emailModalDescriptionText || 'Please enter your email to claim your discount:') +
+              '&emailModalDescriptionColor=' + encodeURIComponent(data.emailModalDescriptionColor || '#333333') +
+              '&emailModalDescriptionSize=' + encodeURIComponent(data.emailModalDescriptionSize || '14') +
+              '&emailModalDescriptionWeight=' + encodeURIComponent(data.emailModalDescriptionWeight || '400') +
+              '&emailModalSubmitText=' + encodeURIComponent(data.emailModalSubmitText || 'Submit') +
+              '&emailModalSubmitColor=' + encodeURIComponent(data.emailModalSubmitColor || '#ffffff') +
+              '&emailModalSubmitSize=' + encodeURIComponent(data.emailModalSubmitSize || '16') +
+              '&emailModalSubmitWeight=' + encodeURIComponent(data.emailModalSubmitWeight || '500') +
+              '&emailModalCancelText=' + encodeURIComponent(data.emailModalCancelText || 'Cancel') +
+              '&emailModalCancelColor=' + encodeURIComponent(data.emailModalCancelColor || '#333333') +
+              '&emailModalCancelSize=' + encodeURIComponent(data.emailModalCancelSize || '16') +
+              '&emailModalCancelWeight=' + encodeURIComponent(data.emailModalCancelWeight || '500') +
+              '&emailModalBgColor=' + encodeURIComponent(data.emailModalBgColor || '#ffffff') +
+              '&emailModalSubmitBgColor=' + encodeURIComponent(data.emailModalSubmitBgColor || '#000000') +
+              '&emailModalCancelBgColor=' + encodeURIComponent(data.emailModalCancelBgColor || '#cccccc') +
+              // Discount Code Modal Settings
+              '&discountModalHeadingText=' + encodeURIComponent(data.discountModalHeadingText || 'Your Discount Code') +
+              '&discountModalHeadingColor=' + encodeURIComponent(data.discountModalHeadingColor || '#333333') +
+              '&discountModalHeadingSize=' + encodeURIComponent(data.discountModalHeadingSize || '20') +
+              '&discountModalHeadingWeight=' + encodeURIComponent(data.discountModalHeadingWeight || '600') +
+              '&discountModalCloseText=' + encodeURIComponent(data.discountModalCloseText || 'Close') +
+              '&discountModalCloseColor=' + encodeURIComponent(data.discountModalCloseColor || '#ffffff') +
+              '&discountModalCloseSize=' + encodeURIComponent(data.discountModalCloseSize || '16') +
+              '&discountModalCloseWeight=' + encodeURIComponent(data.discountModalCloseWeight || '500') +
+              '&discountModalBgColor=' + encodeURIComponent(data.discountModalBgColor || '#ffffff') +
+              '&discountModalCloseBgColor=' + encodeURIComponent(data.discountModalCloseBgColor || '#000000') +
+              '&discountModalDescriptionText=' + encodeURIComponent(data.discountModalDescriptionText || 'Copy your code and use it at checkout') +
+              '&discountModalDescriptionColor=' + encodeURIComponent(data.discountModalDescriptionColor || '#333333') +
+              '&discountModalDescriptionSize=' + encodeURIComponent(data.discountModalDescriptionSize || '14') +
+              '&discountModalDescriptionWeight=' + encodeURIComponent(data.discountModalDescriptionWeight || '400') +
+              (gameType === 'reaction-click' ? '&countdownTime=' + encodeURIComponent(countdownTime) : '');
+            if (gameIframe) {
+              gameIframe.src = gamePath;
+            }
+
+            // Show game directly (no email required before playing)
+            // Email will only be required when claiming discount if requireEmailToClaim is true
+            if (gameContainer) {
+              gameContainer.style.display = 'block';
+            }
+            if (emailForm) {
+              emailForm.style.display = 'none';
+            }
+
+            // Close button handler
+            if (closeBtn) {
+              closeBtn.addEventListener('click', () => {
+                container.style.display = 'none';
+                // TEMPORARY: Disabled for testing
+                // const today = new Date().toDateString();
+                // localStorage.setItem('game-popup-dismissed-' + shop, today);
+              });
+            }
+
+            // Email form submit handler
+            if (emailFormEl && emailInput) {
+              emailFormEl.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = emailInput.value;
+                
+                // Here you could send email to your backend
+                console.log('Email captured:', email);
+                
+                // Hide email form, show game
+                if (emailForm) emailForm.style.display = 'none';
+                if (gameContainer) gameContainer.style.display = 'block';
+              });
+            }
+
+            // Close on overlay click
+            if (overlay) {
+              overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                  container.style.display = 'none';
+                  // TEMPORARY: Disabled for testing
+                  // localStorage.setItem('game-popup-dismissed-' + shop, today);
+                }
+              });
+            }
+          }, 2000); // Show after 2 seconds
+        })
+        .catch(error => {
+          console.error('Error fetching game settings:', error);
+          // If API fails, don't show popup
+        });
+    })();
+  </script>
+
+{% schema %}
+{
+  "name": "Game Popup",
+  "target": "body"
+}
+{% endschema %}
+
