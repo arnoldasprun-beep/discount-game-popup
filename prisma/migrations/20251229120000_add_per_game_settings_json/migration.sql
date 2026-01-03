@@ -84,3 +84,5 @@ CREATE UNIQUE INDEX "GameSettings_shop_key" ON "GameSettings"("shop");
 
 
 
+
+
