@@ -216,6 +216,8 @@ export const options = async () => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  console.log('=== DISCOUNT CLAIM REQUEST RECEIVED ===');
+  
   if (request.method !== "POST") {
     return Response.json(
       { error: "Method not allowed" }, 
@@ -226,14 +228,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   let body;
   try {
     body = await request.json();
+    console.log('Request body received:', { shop: body.shop, email: body.email, percentage: body.percentage });
   } catch (error) {
+    console.error('Error parsing request body:', error);
     return Response.json(
       { error: "Invalid request format. Please try again." },
       { status: 400, headers: corsHeaders }
     );
   }
 
-  const { shop, email, percentage, firstName, lastName } = body;
+  const { shop, email, percentage, firstName, lastName, device, gameType, difficulty } = body;
+  console.log('Extracted values:', { shop, email, percentage });
 
   // Input validation
   if (!shop || !email || percentage === undefined) {
@@ -332,6 +337,50 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
+    // Check if email has already claimed a discount (only if email is provided and not placeholder)
+    console.log('About to check for duplicate email. Email value:', email, 'Is placeholder?', email === 'no-email@example.com');
+    
+    if (email && email !== 'no-email@example.com') {
+      const normalizedEmail = email.toLowerCase().trim();
+      console.log('Checking for duplicate with normalized email:', normalizedEmail, 'shop:', shop);
+      
+      // Try findUnique first (using compound key)
+      let existingClaim = await prisma.discountClaim.findUnique({
+        where: {
+          shop_email: {
+            shop: shop,
+            email: normalizedEmail,
+          },
+        },
+      });
+      
+      console.log('findUnique result:', existingClaim);
+      
+      // Fallback: if findUnique doesn't work, try findFirst
+      if (!existingClaim) {
+        console.log('findUnique returned null, trying findFirst...');
+        existingClaim = await prisma.discountClaim.findFirst({
+          where: {
+            shop: shop,
+            email: normalizedEmail,
+          },
+        });
+        console.log('findFirst result:', existingClaim);
+      }
+
+      if (existingClaim) {
+        console.log('Duplicate email detected:', normalizedEmail, 'Existing claim:', existingClaim);
+        return Response.json(
+          { error: "This email has already claimed a discount. Each email can only claim once." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      
+      console.log('No existing claim found for email:', normalizedEmail, 'shop:', shop);
+    } else {
+      console.log('Skipping duplicate check - email is empty or placeholder:', email);
+    }
+
     // Use database transaction to safely get and increment order number
     let orderNumber: number;
     let discountCode: string = '';
@@ -407,6 +456,35 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { error: 'Unable to create discount code after multiple attempts. Please try again.' },
         { status: 500, headers: corsHeaders }
       );
+    }
+
+    // Record the claim in database
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+      await prisma.discountClaim.create({
+        data: {
+          shop: shop,
+          email: normalizedEmail,
+          discountCode: discountCode,
+          percentage: parseInt(percentageNumber, 10), // Convert string to integer
+          firstName: firstName?.trim() || null,
+          lastName: lastName?.trim() || null,
+          device: device || null,
+          gameType: gameType || null,
+          difficulty: difficulty || null,
+        },
+      });
+    } catch (error: any) {
+      // Check if it's a unique constraint violation (duplicate email)
+      if (error.code === 'P2002' || error.message?.includes('Unique constraint') || error.message?.includes('duplicate')) {
+        return Response.json(
+          { error: "This email has already claimed a discount. Each email can only claim once." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      // Log other errors but don't fail the request - discount was already created
+      console.error('Error recording discount claim:', error);
+      // Note: We still return success since the discount code was created in Shopify
     }
 
     return Response.json(

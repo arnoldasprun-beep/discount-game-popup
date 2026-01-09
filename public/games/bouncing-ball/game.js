@@ -39,6 +39,9 @@ class BouncingBallGame {
         this.requireEmailToClaim = urlParams.get('requireEmailToClaim') === 'true';
         this.requireName = urlParams.get('requireName') === 'true';
         this.shop = urlParams.get('shop') || '';
+        this.sessionId = urlParams.get('sessionId') || '';
+        this.device = urlParams.get('device') || (window.innerWidth <= 768 ? 'Mobile' : 'Desktop');
+        this.gameType = 'bouncing-ball'; // Spike Dodge
         this.appUrl = 'https://trialapp.traffishow.com'; // Will be replaced with deployed URL
         
         // Read text settings from URL
@@ -114,13 +117,15 @@ class BouncingBallGame {
         // Track if max discount was reached
         this.maxDiscountReached = false;
         
-        // Map difficulty slider (0-100) to 4 levels
-        // 0-25 = EASY, 26-50 = MEDIUM, 51-75 = HARD, 76-100 = VERY HARD
-        if (difficultyValue <= 25) {
+        // Map difficulty slider (0-100) to 5 levels
+        // 0-20 = VERY_EASY, 21-40 = EASY, 41-60 = MEDIUM, 61-80 = HARD, 81-100 = VERY_HARD
+        if (difficultyValue <= 20) {
+            this.difficulty = 'VERY_EASY';
+        } else if (difficultyValue <= 40) {
             this.difficulty = 'EASY';
-        } else if (difficultyValue <= 50) {
+        } else if (difficultyValue <= 60) {
             this.difficulty = 'MEDIUM';
-        } else if (difficultyValue <= 75) {
+        } else if (difficultyValue <= 80) {
             this.difficulty = 'HARD';
         } else {
             this.difficulty = 'VERY_HARD';
@@ -155,7 +160,8 @@ class BouncingBallGame {
         
         // Trampolines
         this.trampolines = [];
-        this.obstacleSpawnCount = 0; // Track obstacles to spawn trampoline every 3
+        this.obstacleSpawnCount = 0; // Track obstacles to spawn trampoline
+        this.trampolineSpawnInterval = 3; // Default, will be set by difficulty
         this.obstacleVisibleAmount = 50; // How many pixels should be visible before game starts
         
         // Particle explosion effect
@@ -184,13 +190,20 @@ class BouncingBallGame {
     }
     
     applyTextSettings() {
+        // Apply mobile scaling factor (0.85) for all text sizes
+        const mobileScaleFactor = 0.85;
+        const scaleTextSize = (size) => {
+            const baseSize = parseFloat(size) || 16;
+            return this.isMobile ? baseSize * mobileScaleFactor : baseSize;
+        };
+        
         // Apply secondary text settings (Discount:)
         const scoreDisplay = document.querySelector('.score-display');
         if (scoreDisplay) {
             const discountText = this.textSettings.secondaryText;
             scoreDisplay.innerHTML = `<span>${discountText} <span id="score">0</span>%</span>`;
             scoreDisplay.style.color = this.textSettings.secondaryTextColor;
-            scoreDisplay.style.fontSize = this.textSettings.secondaryTextSize + 'px';
+            scoreDisplay.style.fontSize = scaleTextSize(this.textSettings.secondaryTextSize) + 'px';
             scoreDisplay.style.fontWeight = this.textSettings.secondaryTextWeight;
             
             // Initialize scoreDisplay reference after replacing innerHTML
@@ -202,7 +215,7 @@ class BouncingBallGame {
         if (instructionTextEl) {
             instructionTextEl.textContent = this.textSettings.rulesText;
             instructionTextEl.style.color = this.textSettings.rulesTextColor;
-            instructionTextEl.style.fontSize = this.textSettings.rulesTextSize + 'px';
+            instructionTextEl.style.fontSize = scaleTextSize(this.textSettings.rulesTextSize) + 'px';
             instructionTextEl.style.fontWeight = this.textSettings.rulesTextWeight;
         }
         
@@ -211,7 +224,7 @@ class BouncingBallGame {
         if (startMessage) {
             startMessage.textContent = this.textSettings.instructionText;
             startMessage.style.color = this.textSettings.instructionTextColor;
-            startMessage.style.fontSize = this.textSettings.instructionTextSize + 'px';
+            startMessage.style.fontSize = scaleTextSize(this.textSettings.instructionTextSize) + 'px';
             startMessage.style.fontWeight = this.textSettings.instructionTextWeight;
         }
         
@@ -227,7 +240,7 @@ class BouncingBallGame {
         if (gameOverTitle) {
             gameOverTitle.textContent = this.textSettings.gameEndText;
             gameOverTitle.style.color = this.textSettings.gameEndTextColor;
-            gameOverTitle.style.fontSize = this.textSettings.gameEndTextSize + 'px';
+            gameOverTitle.style.fontSize = scaleTextSize(this.textSettings.gameEndTextSize) + 'px';
             gameOverTitle.style.fontWeight = this.textSettings.gameEndTextWeight;
         }
         
@@ -235,14 +248,14 @@ class BouncingBallGame {
         const finalScore = document.getElementById('finalScore');
         if (finalScore) {
             finalScore.style.color = this.textSettings.gameEndTextColor;
-            finalScore.style.fontSize = this.textSettings.gameEndTextSize + 'px';
+            finalScore.style.fontSize = scaleTextSize(this.textSettings.gameEndTextSize) + 'px';
             finalScore.style.fontWeight = this.textSettings.gameEndTextWeight;
             
             // Also style the parent <p> element to match the percentage symbol
             const parentP = finalScore.parentElement;
             if (parentP && parentP.tagName === 'P') {
                 parentP.style.color = this.textSettings.gameEndTextColor;
-                parentP.style.fontSize = this.textSettings.gameEndTextSize + 'px';
+                parentP.style.fontSize = scaleTextSize(this.textSettings.gameEndTextSize) + 'px';
                 parentP.style.fontWeight = this.textSettings.gameEndTextWeight;
             }
         }
@@ -252,7 +265,7 @@ class BouncingBallGame {
         if (restartBtn) {
             restartBtn.textContent = this.textSettings.buttonText;
             restartBtn.style.color = this.textSettings.buttonTextColor;
-            restartBtn.style.fontSize = this.textSettings.buttonTextSize + 'px';
+            restartBtn.style.fontSize = scaleTextSize(this.textSettings.buttonTextSize) + 'px';
             restartBtn.style.fontWeight = this.textSettings.buttonTextWeight;
             restartBtn.style.backgroundColor = this.textSettings.buttonBgColor;
             restartBtn.style.borderRadius = this.gameEndBorderRadius + 'px';
@@ -263,7 +276,7 @@ class BouncingBallGame {
         if (claimBestBtn) {
             claimBestBtn.textContent = `${this.textSettings.claimBestButtonText} ${this.bestScore}%`;
             claimBestBtn.style.color = this.textSettings.claimBestButtonTextColor;
-            claimBestBtn.style.fontSize = this.textSettings.claimBestButtonTextSize + 'px';
+            claimBestBtn.style.fontSize = scaleTextSize(this.textSettings.claimBestButtonTextSize) + 'px';
             claimBestBtn.style.fontWeight = this.textSettings.claimBestButtonTextWeight;
             claimBestBtn.style.backgroundColor = this.textSettings.claimBestButtonBgColor;
             claimBestBtn.style.borderRadius = this.gameEndBorderRadius + 'px';
@@ -278,31 +291,42 @@ class BouncingBallGame {
     setupDifficultySettings() {
         // Set difficulty-based values
         switch(this.difficulty) {
+            case 'VERY_EASY':
+                this.baseSpeed = 1.5;
+                this.spawnInterval = 3500;
+                this.speedIncreaseMultiplier = 0.05;
+                this.trampolineSpawnInterval = 7; // Every 7 obstacles
+                break;
             case 'EASY':
                 this.baseSpeed = 2;
                 this.spawnInterval = 3000;
                 this.speedIncreaseMultiplier = 0.1;
+                this.trampolineSpawnInterval = 6; // Every 6 obstacles
                 break;
             case 'MEDIUM':
                 this.baseSpeed = 2.5;
                 this.spawnInterval = 2500;
                 this.speedIncreaseMultiplier = 0.2;
+                this.trampolineSpawnInterval = 5; // Every 5 obstacles
                 break;
             case 'HARD':
                 this.baseSpeed = 3;
                 this.spawnInterval = 2000;
                 this.speedIncreaseMultiplier = 0.3;
+                this.trampolineSpawnInterval = 4; // Every 4 obstacles
                 break;
             case 'VERY_HARD':
                 this.baseSpeed = 3.5;
                 this.spawnInterval = 1500;
                 this.speedIncreaseMultiplier = 0.4;
+                this.trampolineSpawnInterval = 3; // Every 3 obstacles
                 break;
             default:
                 // Default to MEDIUM if difficulty not set
                 this.baseSpeed = 2.5;
                 this.spawnInterval = 2500;
                 this.speedIncreaseMultiplier = 0.2;
+                this.trampolineSpawnInterval = 5;
         }
     }
     
@@ -407,6 +431,9 @@ class BouncingBallGame {
             // Update mobile detection and sizes after canvas width is set (for fluid scaling)
             this.updateIsMobile();
             
+            // Reapply text settings with updated mobile state
+            this.applyTextSettings();
+            
             // Update ball radius based on scale factor
             const scaleFactor = this.getScaleFactor();
             this.ball.radius = 17 + (scaleFactor * 7); // 15px to 20px
@@ -501,6 +528,9 @@ class BouncingBallGame {
     }
     
     startGame() {
+        // Track game play
+        this.trackGamePlay();
+        
         this.gameStarted = true;
         this.gameOver = false;
         this.score = 0;
@@ -511,6 +541,12 @@ class BouncingBallGame {
         this.confetti = [];
         this.confettiActive = false;
         this.maxDiscountReached = false;
+        
+        // Show score display again when game restarts
+        const scoreDisplay = document.querySelector('.score-display');
+        if (scoreDisplay) {
+            scoreDisplay.style.display = '';
+        }
         
         // Keep preview obstacle - don't clear obstacles array
         // If restarting (obstacles already cleared), they'll spawn normally during gameplay
@@ -535,6 +571,12 @@ class BouncingBallGame {
         this.lastSpawnTime = Date.now();
         this.updateScore();
         this.gameOverScreen.classList.remove('show');
+        
+        // Show "Play Again" button again when game restarts
+        const restartBtn = document.getElementById('restartBtn');
+        if (restartBtn) {
+            restartBtn.style.display = '';
+        }
         
         // Hide start message and instruction text when game starts (only shown in preview)
         if (this.startMessage) {
@@ -607,6 +649,8 @@ class BouncingBallGame {
         const scaleFactor = this.getScaleFactor();
         // Difficulty-based spike sizes (proportional to obstacle height)
         switch(this.difficulty) {
+            case 'VERY_EASY':
+                return 5 + (scaleFactor * 5);
             case 'EASY':
                 return 6 + (scaleFactor * 6);
             case 'MEDIUM':
@@ -628,6 +672,9 @@ class BouncingBallGame {
         // Difficulty-based obstacle heights
         let obstacleHeight;
         switch(this.difficulty) {
+            case 'VERY_EASY':
+                obstacleHeight = 50 + (scaleFactor * 50);
+                break;
             case 'EASY':
                 obstacleHeight = 60 + (scaleFactor * 60);
                 break;
@@ -678,9 +725,9 @@ class BouncingBallGame {
             passed: false
         });
         
-        // Spawn trampoline every 3 obstacles
+        // Spawn trampoline based on difficulty
         this.obstacleSpawnCount++;
-        if (this.obstacleSpawnCount >= 3) {
+        if (this.obstacleSpawnCount >= this.trampolineSpawnInterval) {
             this.obstacleSpawnCount = 0; // Reset counter
             
             // Trampoline dimensions
@@ -901,6 +948,11 @@ class BouncingBallGame {
             this.drawConfetti();
         }
         
+        // Don't draw game elements when confetti is active OR when game is over with max discount reached
+        if (this.confettiActive || (this.gameOver && this.maxDiscountReached)) {
+            return;
+        }
+        
         if (!this.gameStarted && !this.gameOver) {
             // Calculate bounce trail position
             const bounceOffset = Math.abs(Math.sin(this.idleAnimationTime * this.idleAnimationSpeed)) * this.idleAnimationAmplitude;
@@ -1020,26 +1072,52 @@ class BouncingBallGame {
     createConfetti() {
         this.confettiActive = true;
         this.confetti = [];
-        const confettiCount = 150; // More confetti for celebration
+        const confettiCount = 500; // More confetti for celebration
+        
+        // Hide score display during confetti
+        const scoreDisplay = document.querySelector('.score-display');
+        if (scoreDisplay) {
+            scoreDisplay.style.display = 'none';
+        }
         
         // Colorful confetti colors
         const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#E74C3C'];
         
+        const leftEdgeX = 0;
+        const rightEdgeX = this.canvas.width;
+        
         for (let i = 0; i < confettiCount; i++) {
-            const x = Math.random() * this.canvas.width;
-            const y = -10 - Math.random() * 100; // Start above canvas
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 2 + Math.random() * 4;
+            const isLeftSide = i < confettiCount / 2;
+            
+            // Start position: left or right edge with random vertical position
+            const y = Math.random() * this.canvas.height;
+            const x = isLeftSide 
+                ? leftEdgeX + Math.random() * 30  // Start from left, slightly offset
+                : rightEdgeX - Math.random() * 30; // Start from right, slightly offset
+            
+            // Angle calculation:
+            // Left side: explode INWARD (rightward) with vertical spread
+            // Right side: explode INWARD (leftward) with vertical spread
+            let angle;
+            if (isLeftSide) {
+                // Left side: pointing right (0) with vertical spread - moves INTO canvas
+                angle = (Math.random() - 0.5) * Math.PI; // Between -π/2 and π/2 (rightward with up/down)
+            } else {
+                // Right side: pointing left (π) with vertical spread - moves INTO canvas
+                angle = Math.PI + (Math.random() - 0.5) * Math.PI; // Between π/2 and 3π/2 (leftward with up/down)
+            }
+            
+            const speed = 3 + Math.random() * 5;
             const size = 4 + Math.random() * 6;
             const color = colors[Math.floor(Math.random() * colors.length)];
             const rotation = Math.random() * Math.PI * 2;
-            const rotationSpeed = (Math.random() - 0.5) * 0.2;
+            const rotationSpeed = (Math.random() - 0.5) * 0.3;
             
             this.confetti.push({
                 x: x,
                 y: y,
                 vx: Math.cos(angle) * speed,
-                vy: speed + Math.random() * 2,
+                vy: Math.sin(angle) * speed,
                 size: size,
                 color: color,
                 rotation: rotation,
@@ -1151,22 +1229,43 @@ class BouncingBallGame {
     endGame() {
         this.gameOver = true;
         this.gameStarted = false;
-        // Show maxDiscount if reached, otherwise show current score
-        const finalScore = this.maxDiscountReached ? this.maxDiscount : this.score;
-        this.finalScoreDisplay.textContent = finalScore;
         
-        // Update best score if current score is higher
-        if (finalScore > this.bestScore) {
-            this.bestScore = finalScore;
+        // Explosion is already created in collision handler, don't create it again here
+        
+        // Clear any existing timeout
+        if (this.endGameTimeout) {
+            clearTimeout(this.endGameTimeout);
         }
         
-        // Update claim best button text
-        const claimBestBtn = document.getElementById('claimBestBtn');
-        if (claimBestBtn) {
-            claimBestBtn.textContent = `${this.textSettings.claimBestButtonText} ${this.bestScore}%`;
-        }
-        
+        this.endGameTimeout = setTimeout(() => {
+            // Show maxDiscount if reached, otherwise show current score
+            const finalScore = this.maxDiscountReached ? this.maxDiscount : this.score;
+            this.finalScoreDisplay.textContent = finalScore;
+            
+            // Update best score if current score is higher
+            if (finalScore > this.bestScore) {
+                this.bestScore = finalScore;
+            }
+            
+            // Update claim best button text
+            const claimBestBtn = document.getElementById('claimBestBtn');
+            if (claimBestBtn) {
+                claimBestBtn.textContent = `${this.textSettings.claimBestButtonText} ${this.bestScore}%`;
+            }
+            
+            // Hide "Play Again" button if max discount was reached
+            const restartBtn = document.getElementById('restartBtn');
+            if (restartBtn) {
+                if (this.maxDiscountReached) {
+                    restartBtn.style.display = 'none';
+                } else {
+                    restartBtn.style.display = '';
+                }
+            }
+            
         this.gameOverScreen.classList.add('show');
+        }, 500);
+        
         // Don't clear obstacles - keep them visible after collision
         // this.obstacles = [];
         // Don't reset bottom line - keep it visible after collision
@@ -1176,6 +1275,19 @@ class BouncingBallGame {
     }
     
     restart() {
+        // Clear any pending endGame timeout
+        if (this.endGameTimeout) {
+            clearTimeout(this.endGameTimeout);
+            this.endGameTimeout = null;
+        }
+        
+        // Reset explosion
+        this.explosionActive = false;
+        this.particles = [];
+        
+        // Hide game over screen immediately
+        this.gameOverScreen.classList.remove('show');
+        
         // Clear obstacles on restart (they were kept visible after game over)
         this.obstacles = [];
         // Keep bottom line active and full width
@@ -1194,7 +1306,6 @@ class BouncingBallGame {
             this.startMessage.classList.remove('hide');
         }
         // Don't show instruction text here - it will be hidden immediately when startGame() is called
-        this.endGame();
         setTimeout(() => {
             // Don't spawn preview obstacle
             this.startGame();
@@ -1226,6 +1337,13 @@ class BouncingBallGame {
     }
     
     applyEmailModalSettings() {
+        // Apply mobile scaling factor (0.85) for all text sizes
+        const mobileScaleFactor = 0.85;
+        const scaleTextSize = (size) => {
+            const baseSize = parseFloat(size) || 16;
+            return this.isMobile ? baseSize * mobileScaleFactor : baseSize;
+        };
+        
         const emailModal = document.getElementById('emailModal');
         const emailModalContent = emailModal?.querySelector('.email-modal-content');
         const emailModalHeading = emailModalContent?.querySelector('h3');
@@ -1241,21 +1359,21 @@ class BouncingBallGame {
         if (emailModalHeading) {
             emailModalHeading.textContent = this.textSettings.emailModalHeadingText;
             emailModalHeading.style.color = this.textSettings.emailModalHeadingColor;
-            emailModalHeading.style.fontSize = this.textSettings.emailModalHeadingSize + 'px';
+            emailModalHeading.style.fontSize = scaleTextSize(this.textSettings.emailModalHeadingSize) + 'px';
             emailModalHeading.style.fontWeight = this.textSettings.emailModalHeadingWeight;
         }
         
         if (emailModalDescription) {
             emailModalDescription.textContent = this.textSettings.emailModalDescriptionText;
             emailModalDescription.style.color = this.textSettings.emailModalDescriptionColor;
-            emailModalDescription.style.fontSize = this.textSettings.emailModalDescriptionSize + 'px';
+            emailModalDescription.style.fontSize = scaleTextSize(this.textSettings.emailModalDescriptionSize) + 'px';
             emailModalDescription.style.fontWeight = this.textSettings.emailModalDescriptionWeight;
         }
         
         if (emailSubmitBtn) {
             emailSubmitBtn.textContent = this.textSettings.emailModalSubmitText;
             emailSubmitBtn.style.color = this.textSettings.emailModalSubmitColor;
-            emailSubmitBtn.style.fontSize = this.textSettings.emailModalSubmitSize + 'px';
+            emailSubmitBtn.style.fontSize = scaleTextSize(this.textSettings.emailModalSubmitSize) + 'px';
             emailSubmitBtn.style.fontWeight = this.textSettings.emailModalSubmitWeight;
             emailSubmitBtn.style.backgroundColor = this.textSettings.emailModalSubmitBgColor;
             emailSubmitBtn.style.borderRadius = this.emailModalBorderRadius + 'px';
@@ -1264,7 +1382,7 @@ class BouncingBallGame {
         if (emailCancelBtn) {
             emailCancelBtn.textContent = this.textSettings.emailModalCancelText;
             emailCancelBtn.style.color = this.textSettings.emailModalCancelColor;
-            emailCancelBtn.style.fontSize = this.textSettings.emailModalCancelSize + 'px';
+            emailCancelBtn.style.fontSize = scaleTextSize(this.textSettings.emailModalCancelSize) + 'px';
             emailCancelBtn.style.fontWeight = this.textSettings.emailModalCancelWeight;
             emailCancelBtn.style.backgroundColor = this.textSettings.emailModalCancelBgColor;
             emailCancelBtn.style.borderRadius = this.emailModalBorderRadius + 'px';
@@ -1272,6 +1390,13 @@ class BouncingBallGame {
     }
 
     applyDiscountModalSettings() {
+        // Apply mobile scaling factor (0.85) for all text sizes
+        const mobileScaleFactor = 0.85;
+        const scaleTextSize = (size) => {
+            const baseSize = parseFloat(size) || 16;
+            return this.isMobile ? baseSize * mobileScaleFactor : baseSize;
+        };
+        
         const discountModal = document.getElementById('discountCodeModal');
         const discountModalContent = discountModal?.querySelector('.discount-code-modal-content');
         const discountModalHeading = discountModalContent?.querySelector('h3');
@@ -1286,21 +1411,21 @@ class BouncingBallGame {
         if (discountModalHeading) {
             discountModalHeading.textContent = this.textSettings.discountModalHeadingText;
             discountModalHeading.style.color = this.textSettings.discountModalHeadingColor;
-            discountModalHeading.style.fontSize = this.textSettings.discountModalHeadingSize + 'px';
+            discountModalHeading.style.fontSize = scaleTextSize(this.textSettings.discountModalHeadingSize) + 'px';
             discountModalHeading.style.fontWeight = this.textSettings.discountModalHeadingWeight;
         }
         
         const discountCodeDescription = document.getElementById('discountCodeDescription');
         if (discountCodeDescription) {
             discountCodeDescription.style.color = this.textSettings.discountModalDescriptionColor;
-            discountCodeDescription.style.fontSize = this.textSettings.discountModalDescriptionSize + 'px';
+            discountCodeDescription.style.fontSize = scaleTextSize(this.textSettings.discountModalDescriptionSize) + 'px';
             discountCodeDescription.style.fontWeight = this.textSettings.discountModalDescriptionWeight;
         }
         
         if (discountCodeCloseBtn) {
             discountCodeCloseBtn.textContent = this.textSettings.discountModalCloseText;
             discountCodeCloseBtn.style.color = this.textSettings.discountModalCloseColor;
-            discountCodeCloseBtn.style.fontSize = this.textSettings.discountModalCloseSize + 'px';
+            discountCodeCloseBtn.style.fontSize = scaleTextSize(this.textSettings.discountModalCloseSize) + 'px';
             discountCodeCloseBtn.style.fontWeight = this.textSettings.discountModalCloseWeight;
             discountCodeCloseBtn.style.backgroundColor = this.textSettings.discountModalCloseBgColor;
             discountCodeCloseBtn.style.borderRadius = this.discountModalBorderRadius + 'px';
@@ -1358,6 +1483,13 @@ class BouncingBallGame {
                 }
                 
                 const handleSubmit = async () => {
+                    // Clear any existing error messages
+                    const existingErrorMsg = document.getElementById('emailErrorMsg');
+                    if (existingErrorMsg) {
+                        existingErrorMsg.style.display = 'none';
+                        existingErrorMsg.textContent = '';
+                    }
+                    
                     // Get fresh reference to input elements
                     const currentEmailInput = document.getElementById('emailInput');
                     const currentFirstNameInput = document.getElementById('firstNameInput');
@@ -1389,45 +1521,79 @@ class BouncingBallGame {
                     
                     // Email validation only if email is required
                     if (this.requireEmailToClaim) {
+                        // Helper function to show email error in modal
+                        const showEmailError = (message) => {
+                            const emailModal = document.getElementById('emailModal');
+                            const emailInput = document.getElementById('emailInput');
+                            
+                            // Ensure modal is visible
+                            if (emailModal) {
+                                emailModal.style.display = 'flex';
+                            }
+                            
+                            // Get or create error message element
+                            let emailErrorMsg = document.getElementById('emailErrorMsg');
+                            if (!emailErrorMsg && emailInput && emailInput.parentNode) {
+                                const errorDiv = document.createElement('div');
+                                errorDiv.id = 'emailErrorMsg';
+                                errorDiv.style.color = '#d32f2f';
+                                errorDiv.style.fontSize = '14px';
+                                errorDiv.style.marginTop = '8px';
+                                errorDiv.style.textAlign = 'center';
+                                errorDiv.style.padding = '0 20px';
+                                emailInput.parentNode.insertBefore(errorDiv, emailInput.nextSibling);
+                                emailErrorMsg = errorDiv;
+                            }
+                            
+                            // Display error message
+                            if (emailErrorMsg) {
+                                emailErrorMsg.textContent = message;
+                                emailErrorMsg.style.display = 'block';
+                            } else {
+                                // Fallback to alert if element creation failed
+                                alert(message);
+                            }
+                        };
+                        
                         // Email validation with simple regex and safeguards
                         // 1. Length validation
                         if (!email || email.length === 0) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         if (email.length > 254) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         
                         // 2. Basic format checks
                         if (email.includes(' ')) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         if (email.startsWith('.') || email.startsWith('@')) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         if (email.endsWith('.') || email.endsWith('@')) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         if (email.includes('..')) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         
                         // 3. Ensure exactly ONE @ symbol
                         if (email.split('@').length !== 2) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         
                         // 4. Basic regex check (simple and safe)
                         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
                         if (!emailRegex.test(email)) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         
@@ -1436,17 +1602,17 @@ class BouncingBallGame {
                         
                         // Local part checks
                         if (!local || local.startsWith('.') || local.endsWith('.')) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         
                         // Domain checks
                         if (!domain || domain.startsWith('.') || domain.endsWith('.')) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         if (!domain.includes('.')) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                         
@@ -1454,15 +1620,13 @@ class BouncingBallGame {
                         const domainParts = domain.split('.');
                         const tld = domainParts[domainParts.length - 1];
                         if (!tld || tld.length < 2) {
-                            alert('Please enter a valid email address.');
+                            showEmailError('Please enter a valid email address.');
                             return;
                         }
                     }
                     
-                    // Hide modal
-                    emailModal.style.display = 'none';
-                    
                     // Process discount (use empty email if not required)
+                    // Note: Don't close modal here - it will be closed on success in processDiscountClaim
                     await this.processDiscountClaim(
                         this.requireEmailToClaim ? email : '', 
                         firstName, 
@@ -1530,6 +1694,36 @@ class BouncingBallGame {
         }
     }
     
+    trackGamePlay() {
+        if (!this.shop || !this.sessionId) return;
+        
+        fetch(this.appUrl + '/api/track-game-play', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                shop: this.shop,
+                sessionId: this.sessionId,
+                device: this.device,
+                gameType: this.gameType,
+            })
+        }).catch(error => {
+            console.error('Failed to track game play:', error);
+        });
+    }
+    
+    getDifficultyLevel() {
+        const levelMap = {
+            'VERY_EASY': 1,
+            'EASY': 2,
+            'MEDIUM': 3,
+            'HARD': 4,
+            'VERY_HARD': 5
+        };
+        return levelMap[this.difficulty] || null;
+    }
+    
     async processDiscountClaim(email, firstName = '', lastName = '') {
         try {
             const response = await fetch(this.appUrl + '/api/generate-discount', {
@@ -1543,12 +1737,21 @@ class BouncingBallGame {
                     firstName: firstName || '',
                     lastName: lastName || '',
                     percentage: this.bestScore,
+                    device: this.device,
+                    gameType: this.gameType,
+                    difficulty: this.difficulty ? `Level ${this.getDifficultyLevel()}` : null,
                 }),
             });
             
             const data = await response.json();
             
             if (data.success && data.discountCode) {
+                // Hide email modal first (before showing discount modal)
+                const emailModal = document.getElementById('emailModal');
+                if (emailModal) {
+                    emailModal.style.display = 'none';
+                }
+                
                 // Show discount code in custom modal
                 const discountModal = document.getElementById('discountCodeModal');
                 const discountCodeText = document.getElementById('discountCodeText');
@@ -1559,25 +1762,136 @@ class BouncingBallGame {
                     this.applyDiscountModalSettings();
                     
                     discountCodeText.value = data.discountCode;
+                    
+                    // Adjust font size based on actual text width
+                    const adjustFontSize = () => {
+                        // Apply mobile scaling factor (0.85) for discount code input
+                        const mobileScaleFactor = 0.85;
+                        const baseFontSize = 18;
+                        const baseMinFontSize = 12;
+                        const defaultFontSize = this.isMobile ? baseFontSize * mobileScaleFactor : baseFontSize;
+                        const minFontSize = this.isMobile ? baseMinFontSize * mobileScaleFactor : baseMinFontSize;
+                        
+                        // Reset to default size first
+                        discountCodeText.style.fontSize = defaultFontSize + 'px';
+                        
+                        // Wait for browser to render and recalculate
+                        setTimeout(() => {
+                            const input = discountCodeText;
+                            let fontSize = defaultFontSize;
+                            
+                            // Force a reflow to ensure accurate measurement
+                            void input.offsetHeight;
+                            
+                            // Only reduce if text doesn't fit at default size
+                            if (input.scrollWidth > input.clientWidth) {
+                                // Reduce font size until text fits
+                                while (input.scrollWidth > input.clientWidth && fontSize > minFontSize) {
+                                    fontSize -= 0.5;
+                                    input.style.fontSize = fontSize + 'px';
+                                    // Force reflow after each change for accurate measurement
+                                    void input.offsetHeight;
+                                }
+                                
+                                // Ensure minimum font size
+                                if (fontSize < minFontSize) {
+                                    input.style.fontSize = minFontSize + 'px';
+                                }
+                            }
+                            // If text fits at default size, fontSize stays at default size (already set above)
+                        }, 10);
+                    };
+                    adjustFontSize();
+                    
                     const discountCodeDescription = document.getElementById('discountCodeDescription');
                     if (discountCodeDescription) {
                         discountCodeDescription.textContent = this.textSettings.discountModalDescriptionText;
                     }
                     discountModal.style.display = 'flex';
                     
+                    // Add copy functionality
+                    const copyBtn = document.getElementById('discountCodeCopyBtn');
+                    if (copyBtn) {
+                        copyBtn.onclick = async () => {
+                            try {
+                                await navigator.clipboard.writeText(discountCodeText.value);
+                                // Visual feedback
+                                const svg = copyBtn.querySelector('svg');
+                                if (svg) {
+                                    const originalColor = svg.style.stroke || 'currentColor';
+                                    svg.style.stroke = '#4caf50';
+                                    setTimeout(() => {
+                                        svg.style.stroke = originalColor;
+                                    }, 500);
+                                }
+                            } catch (err) {
+                                // Fallback for older browsers
+                                discountCodeText.select();
+                                document.execCommand('copy');
+                            }
+                        };
+                    }
+                    
                     if (discountCodeCloseBtn) {
                         discountCodeCloseBtn.onclick = () => {
                             discountModal.style.display = 'none';
+                            // Send message to parent to close popup
+                            if (window.parent && window.parent !== window) {
+                                window.parent.postMessage('closeGamePopup', '*');
+                            }
                         };
                     }
                 }
             } else {
-                alert('Failed to generate discount code. Please try again.');
+                // Check if it's a duplicate email error
+                const isDuplicateEmail = data.error && (
+                    data.error.includes('already claimed') || 
+                    data.error.includes('duplicate')
+                );
+                
+                if (isDuplicateEmail) {
+                    // Show error in email modal instead of alert
+                    const emailModal = document.getElementById('emailModal');
+                    const emailInput = document.getElementById('emailInput');
+                    
+                    // Show modal first (so DOM is ready for element creation)
+                    if (emailModal) {
+                        emailModal.style.display = 'flex';
+                    }
+                    
+                    // Get or create error message element
+                    let emailErrorMsg = document.getElementById('emailErrorMsg');
+                    if (!emailErrorMsg && emailInput && emailInput.parentNode) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.id = 'emailErrorMsg';
+                        errorDiv.style.color = '#d32f2f';
+                        errorDiv.style.fontSize = '14px';
+                        errorDiv.style.marginTop = '8px';
+                        errorDiv.style.textAlign = 'center';
+                        errorDiv.style.padding = '0 20px';
+                        emailInput.parentNode.insertBefore(errorDiv, emailInput.nextSibling);
+                        emailErrorMsg = errorDiv; // Use the created element directly
+                    }
+                    
+                    // Display error message
+                    if (emailErrorMsg) {
+                        emailErrorMsg.textContent = 'You have already claimed discount with this email';
+                        emailErrorMsg.style.display = 'block';
+                    } else {
+                        // Fallback to alert if element creation failed
+                        alert('You have already claimed discount with this email');
+                    }
+                } else {
+                    // Other errors - use alert
+                    alert(data.error || 'Failed to generate discount code. Please try again.');
+                }
+                
                 console.error('Discount generation error:', data.error);
             }
         } catch (error) {
             console.error('Error calling discount API:', error);
             alert('An error occurred while generating your discount code. Please try again.');
+            return { duplicateEmail: false, error: 'An error occurred while generating your discount code. Please try again.' };
         }
     }
 

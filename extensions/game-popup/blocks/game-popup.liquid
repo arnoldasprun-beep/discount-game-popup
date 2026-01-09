@@ -3,12 +3,24 @@
 {% endcomment %}
 
 {% comment %} Sticky Button {% endcomment %}
-<div id="sticky-button-container" style="display: none;">
-  <button id="sticky-button" style="
+<div id="sticky-button-container" style="display: none; position: fixed; z-index: 9999;">
+  <button id="sticky-button-close" style="
     position: fixed;
-    right: 0;
-    top: 50%;
-    z-index: 9999;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 0;
+  ">×</button>
+  <button id="sticky-button" style="
     background-color: #000000;
     color: white;
     border: none;
@@ -19,8 +31,6 @@
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     white-space: nowrap;
-    transform: rotate(-90deg) translateY(-50%);
-    transform-origin: center right;
   ">Discount Game</button>
 </div>
 
@@ -66,15 +76,12 @@
         <div id="game-popup-logo" style="
           display: none;
           background: white;
-          padding: 20px 20px;
-          border-bottom: 1px solid #e0e0e0;
+          padding: 0 0px;
           flex-shrink: 0;
           align-items: center;
           justify-content: center;
         ">
           <img id="game-popup-logo-img" src="" alt="Logo" style="
-            max-width: 200px;
-            max-height: 100px;
             object-fit: contain;
           " />
         </div>
@@ -162,9 +169,41 @@
 </style>
 
   <script>
+    // Listen for messages from iframe to close popup
+    window.addEventListener('message', function(event) {
+      if (event.data === 'closeGamePopup') {
+        const container = document.getElementById('game-popup-container');
+        if (container) {
+          container.style.display = 'none';
+        }
+      }
+    });
+
     (function() {
       const shop = '{{ shop.permanent_domain }}';
       const appUrl = 'https://trialapp.traffishow.com'; // Will be replaced with deployed URL
+      
+      // Generate unique sessionId for this popup instance
+      function generateSessionId() {
+        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      }
+      
+      // Track popup view
+      function trackPopupView(sessionId, device) {
+        fetch(appUrl + '/api/track-popup-view', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            shop: shop,
+            sessionId: sessionId,
+            device: device
+          })
+        }).catch(error => {
+          console.error('Failed to track popup view:', error);
+        });
+      }
       
       // TEMPORARY: Disabled localStorage check for testing
       // Check if popup should show (not shown if already dismissed today)
@@ -186,6 +225,9 @@
           const gameType = data.selectedGame || 'bouncing-ball';
           const requireEmailToClaim = data.requireEmailToClaim !== undefined ? data.requireEmailToClaim : false;
           const requireName = data.requireName !== undefined ? data.requireName : false;
+          const popupDelay = data.popupDelay || '0';
+          const popupDisplayPage = data.popupDisplayPage || 'any';
+          const popupCustomUrls = data.popupCustomUrls || [];
           const popupText = data.popupText || 'Discount Game';
           const mainText = data.mainText || 'Discount Game';
           const mainTextColor = data.mainTextColor || '#000000';
@@ -210,43 +252,63 @@
           const buttonBgColor = data.buttonBgColor || '#000000';
           const claimBestButtonBgColor = data.claimBestButtonBgColor || '#000000';
           const logoUrl = data.logoUrl || null;
+          const logoScale = data.logoScale !== undefined ? data.logoScale : 100;
+          const logoScaleMobile = data.logoScaleMobile !== undefined ? data.logoScaleMobile : 100;
           console.log('Logo URL from API:', logoUrl); // Debug logging
           
           // Sticky Button Settings
           const showStickyButton = data.showStickyButton !== undefined ? data.showStickyButton : false;
           const stickyButtonText = data.stickyButtonText || 'Discount Game';
           const stickyButtonColor = data.stickyButtonColor || '#000000';
+          const stickyButtonTextColor = data.stickyButtonTextColor || '#ffffff';
+          const stickyButtonPosition = data.stickyButtonPosition || 'right';
+          const stickyButtonDisplayPage = data.stickyButtonDisplayPage || 'any';
+          const stickyButtonCustomUrls = data.stickyButtonCustomUrls || [];
           const stickyButtonShowOnDesktop = data.stickyButtonShowOnDesktop !== undefined ? data.stickyButtonShowOnDesktop : true;
           const stickyButtonShowOnMobile = data.stickyButtonShowOnMobile !== undefined ? data.stickyButtonShowOnMobile : true;
+          const showPopupHeaderText = data.showPopupHeaderText !== undefined ? data.showPopupHeaderText : true;
           
-          // Show sticky button if enabled
-          if (showStickyButton) {
-            const stickyButtonContainer = document.getElementById('sticky-button-container');
-            const stickyButton = document.getElementById('sticky-button');
-            
-            if (stickyButtonContainer && stickyButton) {
-              // Check if should show on current device
-              const isMobile = window.innerWidth <= 768;
-              const shouldShow = (isMobile && stickyButtonShowOnMobile) || (!isMobile && stickyButtonShowOnDesktop);
-              
-              if (shouldShow) {
-                stickyButtonContainer.style.display = 'block';
-                stickyButton.textContent = stickyButtonText;
-                stickyButton.style.backgroundColor = stickyButtonColor;
-                
-                // Click handler to show popup
-                stickyButton.addEventListener('click', () => {
-                  const container = document.getElementById('game-popup-container');
-                  if (container) {
-                    container.style.display = 'block';
-                  }
-                });
-              }
+          // Helper function to check if current page matches display settings
+          function shouldShowOnCurrentPage(displayPage, customUrls) {
+            if (displayPage === 'any') {
+              return true;
             }
+            if (displayPage === 'custom' && customUrls && customUrls.length > 0) {
+              const currentPath = window.location.pathname;
+              const currentHref = window.location.href;
+              // Check if current path or href matches any custom URL
+              return customUrls.some(url => {
+                if (!url || url.trim() === '') return false;
+                const normalizedUrl = url.trim();
+                // Remove leading/trailing slashes for comparison
+                const urlPath = normalizedUrl.replace(/^\/+|\/+$/g, '');
+                const currentPathNormalized = currentPath.replace(/^\/+|\/+$/g, '');
+                // Check if pathname matches or if URL is contained in href
+                return currentPathNormalized === urlPath || 
+                       currentPathNormalized.endsWith('/' + urlPath) ||
+                       currentPathNormalized.startsWith(urlPath + '/') ||
+                       currentHref.includes(normalizedUrl);
+              });
+            }
+            return false;
           }
           
-          // Show popup after a delay
-          setTimeout(() => {
+          // Check if popup should show on current page
+          const shouldShowPopup = shouldShowOnCurrentPage(popupDisplayPage, popupCustomUrls);
+          
+          // Check if sticky button should show on current page
+          const shouldShowStickyButtonOnPage = shouldShowOnCurrentPage(stickyButtonDisplayPage, stickyButtonCustomUrls);
+          
+          // Store timeout ID and initialization flag (before sticky button setup)
+          let popupTimeoutId = null;
+          let popupInitialized = false;
+          
+          // Extract initialization logic into a reusable function
+          function initializePopup() {
+            // Prevent double initialization
+            if (popupInitialized) return;
+            popupInitialized = true;
+            
             const container = document.getElementById('game-popup-container');
             const overlay = document.getElementById('game-popup-overlay');
             const emailForm = document.getElementById('email-form-container');
@@ -266,12 +328,42 @@
             // Show logo if logoUrl is provided
             if (logoUrl && logoUrl.trim() !== '' && popupLogo && popupLogoImg) {
               console.log('Setting logo:', logoUrl); // Debug logging
+              
+              // Function to update logo size based on mobile/desktop state
+              const updateLogoSize = () => {
+                const isMobileNow = window.innerWidth <= 768;
+                const currentLogoScale = isMobileNow ? logoScaleMobile : logoScale;
+                const baseLogoHeight = isMobileNow ? 60 : 80;
+                const scaleFactor = 1 + currentLogoScale / 25;
+                const scaledHeight = baseLogoHeight * scaleFactor;
+                
+                if (popupLogo) {
+                  popupLogo.style.height = baseLogoHeight + 'px';
+                  popupLogo.style.overflow = 'hidden';
+                }
+                
+                if (popupLogoImg) {
+                  popupLogoImg.style.maxHeight = scaledHeight + 'px';
+                  popupLogoImg.style.height = scaledHeight + 'px';
+                  popupLogoImg.style.width = 'auto';
+                  popupLogoImg.style.transform = 'none';
+                  popupLogoImg.style.transformOrigin = 'center center';
+                }
+              };
+              
+              // Set initial logo styles
               popupLogo.style.display = 'flex';
               popupLogoImg.src = logoUrl;
+              popupLogoImg.style.display = 'block';
+              popupLogoImg.style.objectFit = 'contain';
+              
+              // Apply initial sizing
+              updateLogoSize();
               
               // Handle image load success
               popupLogoImg.onload = function() {
                 console.log('Logo image loaded successfully');
+                updateLogoSize(); // Reapply sizing after image loads
               };
               
               // Handle image load errors
@@ -281,6 +373,12 @@
                   popupLogo.style.display = 'none';
                 }
               };
+              
+              // Add resize handler to update logo scaling dynamically
+              window.addEventListener('resize', updateLogoSize);
+              window.addEventListener('orientationchange', () => {
+                setTimeout(updateLogoSize, 200);
+              });
             } else {
               console.log('Logo not shown - logoUrl:', logoUrl, 'popupLogo:', popupLogo, 'popupLogoImg:', popupLogoImg);
               if (popupLogo) {
@@ -288,29 +386,52 @@
               }
             }
 
-            container.style.display = 'block';
-
             // Set popup title text and styles
             if (popupTitle) {
               popupTitle.textContent = mainText;
               popupTitle.style.color = mainTextColor;
-              popupTitle.style.fontSize = mainTextSize + 'px';
-              popupTitle.style.lineHeight = mainTextSize + 'px';
+              
+              // Function to update popup title font size based on mobile state
+              const updatePopupTitleSize = () => {
+                const isMobile = window.innerWidth <= 768;
+                const mobileScaleFactor = 0.85;
+                const adjustedTextSize = isMobile ? parseFloat(mainTextSize) * mobileScaleFactor : parseFloat(mainTextSize);
+                popupTitle.style.fontSize = adjustedTextSize + 'px';
+                popupTitle.style.lineHeight = adjustedTextSize + 'px';
+              };
+              
+              // Apply initial mobile scaling
+              updatePopupTitleSize();
+              
               popupTitle.style.margin = '0';
               popupTitle.style.padding = '0';
               popupTitle.style.fontFamily = "'Poppins', sans-serif";
               popupTitle.style.fontWeight = mainTextWeight.toString();
               popupTitle.style.textAlign = 'center';
               popupTitle.style.width = '100%';
+              popupTitle.style.letterSpacing = 'normal';
+              
+              // Add resize handler to update popup title font size dynamically
+              window.addEventListener('resize', updatePopupTitleSize);
+              
+              // Also handle orientation change
+              window.addEventListener('orientationchange', () => {
+                setTimeout(updatePopupTitleSize, 200);
+              });
             }
 
             // Set popup header background color and flexbox centering
+            // Show/hide header based on showPopupHeaderText setting
             if (popupHeader) {
-              popupHeader.style.backgroundColor = mainTextBgColor;
-              popupHeader.style.borderBottom = 'none';
-              popupHeader.style.display = 'flex';
-              popupHeader.style.alignItems = 'center';
-              popupHeader.style.justifyContent = 'center';
+              if (showPopupHeaderText && mainText && mainText.trim() !== '') {
+                popupHeader.style.backgroundColor = mainTextBgColor;
+                popupHeader.style.borderBottom = 'none';
+                popupHeader.style.display = 'flex';
+                popupHeader.style.alignItems = 'center';
+                popupHeader.style.justifyContent = 'center';
+              } else {
+                popupHeader.style.display = 'none';
+              }
             }
 
             // Set popup border radius
@@ -318,9 +439,19 @@
               popupContent.style.borderRadius = borderRadius + 'px';
             }
 
+            // Generate sessionId and detect device
+            const sessionId = generateSessionId();
+            const device = window.innerWidth <= 768 ? 'Mobile' : 'Desktop';
+            
+            // Track popup view
+            trackPopupView(sessionId, device);
+            
             // Set game iframe source with color parameters, difficulty, maxDiscount, countdownTime, and text settings
             const gamePath = appUrl + '/games/' + gameType + '/index.html' +
-              '?bg=' + encodeURIComponent(backgroundColor) +
+              '?shop=' + encodeURIComponent(shop) +
+              '&sessionId=' + encodeURIComponent(sessionId) +
+              '&device=' + encodeURIComponent(device) +
+              '&bg=' + encodeURIComponent(backgroundColor) +
               '&ball=' + encodeURIComponent(ballColor) +
               '&obstacle=' + encodeURIComponent(obstacleColor) +
               '&difficulty=' + encodeURIComponent(gameDifficulty) +
@@ -447,7 +578,101 @@
                 }
               });
             }
-          }, 2000); // Show after 2 seconds
+          }
+          
+          // Show sticky button if enabled
+          if (showStickyButton) {
+            const stickyButtonContainer = document.getElementById('sticky-button-container');
+            const stickyButton = document.getElementById('sticky-button');
+            const stickyButtonClose = document.getElementById('sticky-button-close');
+            
+            if (stickyButtonContainer && stickyButton && stickyButtonClose) {
+              // Check if should show on current device and page
+              const isMobile = window.innerWidth <= 768;
+              const shouldShowDevice = (isMobile && stickyButtonShowOnMobile) || (!isMobile && stickyButtonShowOnDesktop);
+              const shouldShow = shouldShowDevice && shouldShowStickyButtonOnPage;
+              
+              if (shouldShow) {
+                stickyButtonContainer.style.display = 'block';
+                stickyButtonClose.style.display = 'block';
+                stickyButton.textContent = stickyButtonText;
+                stickyButton.style.backgroundColor = stickyButtonColor;
+                stickyButton.style.color = stickyButtonTextColor;
+                
+                // Apply close button colors (inverted from button)
+                stickyButtonClose.style.backgroundColor = stickyButtonTextColor;
+                stickyButtonClose.style.color = stickyButtonColor;
+                
+                // Apply position styles dynamically
+                if (stickyButtonPosition === 'right') {
+                  stickyButtonContainer.style.right = '0';
+                  stickyButtonContainer.style.top = '40%';
+                  stickyButton.style.transform = 'rotate(-90deg) translateY(-50%)';
+                  stickyButton.style.transformOrigin = 'center right';
+                  // Position close button
+                  stickyButtonClose.style.right = '29px';
+                  stickyButtonClose.style.top = 'calc(40% + 22px)';
+                  stickyButtonClose.style.transform = 'translateY(-50%)';
+                } else if (stickyButtonPosition === 'bottom') {
+                  stickyButtonContainer.style.bottom = '0';
+                  stickyButtonContainer.style.left = '50%';
+                  stickyButtonContainer.style.transform = '';
+                  stickyButton.style.transform = 'translateX(-50%)';
+                  stickyButton.style.transformOrigin = 'center';
+                  // Position close button
+                  stickyButtonClose.style.bottom = '30px';
+                  stickyButtonClose.style.left = 'calc(50% + 82px)';
+                  stickyButtonClose.style.transform = 'translateX(-50%)';
+                } else if (stickyButtonPosition === 'left') {
+                  stickyButtonContainer.style.left = '0';
+                  stickyButtonContainer.style.top = '40%';
+                  stickyButton.style.transform = 'rotate(90deg) translateY(-50%)';
+                  stickyButton.style.transformOrigin = 'center left';
+                  // Position close button
+                  stickyButtonClose.style.left = '29px';
+                  stickyButtonClose.style.top = 'calc(40% + 22px)';
+                  stickyButtonClose.style.transform = 'translateY(-50%)';
+                }
+                
+                // Click handler to show popup (only if popup should show on current page)
+                stickyButton.addEventListener('click', () => {
+                  if (shouldShowPopup) {
+                    // Clear the timeout if it hasn't fired yet
+                    if (popupTimeoutId) {
+                      clearTimeout(popupTimeoutId);
+                      popupTimeoutId = null;
+                    }
+                    
+                    // Initialize and show popup
+                    initializePopup();
+                    const container = document.getElementById('game-popup-container');
+                    if (container) {
+                      container.style.display = 'block';
+                    }
+                  }
+                });
+                
+                // Close button click handler
+                stickyButtonClose.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  stickyButtonContainer.style.display = 'none';
+                  stickyButtonClose.style.display = 'none';
+                });
+              }
+            }
+          }
+          
+          // Show popup after a delay (only if page check passes)
+          if (shouldShowPopup) {
+            const delayMs = parseInt(popupDelay, 10) * 1000; // Convert seconds to milliseconds
+            popupTimeoutId = setTimeout(() => {
+              initializePopup();
+              const container = document.getElementById('game-popup-container');
+              if (container) {
+                container.style.display = 'block';
+              }
+            }, delayMs);
+          }
         })
         .catch(error => {
           console.error('Error fetching game settings:', error);

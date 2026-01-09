@@ -27,6 +27,10 @@ class ReactionGame {
         this.requireEmailToClaim = urlParams.get('requireEmailToClaim') === 'true';
         this.requireName = urlParams.get('requireName') === 'true';
         this.shop = urlParams.get('shop') || '';
+        this.sessionId = urlParams.get('sessionId') || '';
+        this.device = urlParams.get('device') || (window.innerWidth <= 768 ? 'Mobile' : 'Desktop');
+        this.isMobile = window.innerWidth <= 768; // Match CSS breakpoint
+        this.gameType = 'reaction-click'; // Reaction Click
         this.appUrl = 'https://trialapp.traffishow.com'; // Will be replaced with deployed URL
         
         // Store colors
@@ -113,13 +117,20 @@ class ReactionGame {
     }
     
     applyTextSettings() {
+        // Apply mobile scaling factor (0.85) for all text sizes
+        const mobileScaleFactor = 0.85;
+        const scaleTextSize = (size) => {
+            const baseSize = parseFloat(size) || 16;
+            return this.isMobile ? baseSize * mobileScaleFactor : baseSize;
+        };
+        
         // Apply secondary text settings (Discount:)
         const scoreDisplay = document.querySelector('.score-display');
         if (scoreDisplay) {
             const discountText = this.textSettings.secondaryText;
             scoreDisplay.innerHTML = `<span>${discountText} <span id="score">0</span>%</span>`;
             scoreDisplay.style.color = this.textSettings.secondaryTextColor;
-            scoreDisplay.style.fontSize = this.textSettings.secondaryTextSize + 'px';
+            scoreDisplay.style.fontSize = scaleTextSize(this.textSettings.secondaryTextSize) + 'px';
             scoreDisplay.style.fontWeight = this.textSettings.secondaryTextWeight;
             
             // Re-initialize scoreDisplay reference after replacing innerHTML
@@ -131,7 +142,7 @@ class ReactionGame {
         if (instructionTextEl) {
             instructionTextEl.textContent = this.textSettings.rulesText;
             instructionTextEl.style.color = this.textSettings.rulesTextColor;
-            instructionTextEl.style.fontSize = this.textSettings.rulesTextSize + 'px';
+            instructionTextEl.style.fontSize = scaleTextSize(this.textSettings.rulesTextSize) + 'px';
             instructionTextEl.style.fontWeight = this.textSettings.rulesTextWeight;
         }
         
@@ -140,7 +151,7 @@ class ReactionGame {
         if (startMessage) {
             startMessage.textContent = this.textSettings.instructionText;
             startMessage.style.color = this.textSettings.instructionTextColor;
-            startMessage.style.fontSize = this.textSettings.instructionTextSize + 'px';
+            startMessage.style.fontSize = scaleTextSize(this.textSettings.instructionTextSize) + 'px';
             startMessage.style.fontWeight = this.textSettings.instructionTextWeight;
         }
         
@@ -156,7 +167,7 @@ class ReactionGame {
         if (gameOverTitle) {
             gameOverTitle.textContent = this.textSettings.gameEndText;
             gameOverTitle.style.color = this.textSettings.gameEndTextColor;
-            gameOverTitle.style.fontSize = this.textSettings.gameEndTextSize + 'px';
+            gameOverTitle.style.fontSize = scaleTextSize(this.textSettings.gameEndTextSize) + 'px';
             gameOverTitle.style.fontWeight = this.textSettings.gameEndTextWeight;
         }
         
@@ -164,14 +175,14 @@ class ReactionGame {
         const finalScore = document.getElementById('finalScore');
         if (finalScore) {
             finalScore.style.color = this.textSettings.gameEndTextColor;
-            finalScore.style.fontSize = this.textSettings.gameEndTextSize + 'px';
+            finalScore.style.fontSize = scaleTextSize(this.textSettings.gameEndTextSize) + 'px';
             finalScore.style.fontWeight = this.textSettings.gameEndTextWeight;
             
             // Also style the parent <p> element to match the percentage symbol
             const parentP = finalScore.parentElement;
             if (parentP && parentP.tagName === 'P') {
                 parentP.style.color = this.textSettings.gameEndTextColor;
-                parentP.style.fontSize = this.textSettings.gameEndTextSize + 'px';
+                parentP.style.fontSize = scaleTextSize(this.textSettings.gameEndTextSize) + 'px';
                 parentP.style.fontWeight = this.textSettings.gameEndTextWeight;
             }
         }
@@ -181,7 +192,7 @@ class ReactionGame {
         if (restartBtn) {
             restartBtn.textContent = this.textSettings.buttonText;
             restartBtn.style.color = this.textSettings.buttonTextColor;
-            restartBtn.style.fontSize = this.textSettings.buttonTextSize + 'px';
+            restartBtn.style.fontSize = scaleTextSize(this.textSettings.buttonTextSize) + 'px';
             restartBtn.style.fontWeight = this.textSettings.buttonTextWeight;
             restartBtn.style.backgroundColor = this.textSettings.buttonBgColor;
             restartBtn.style.borderRadius = this.gameEndBorderRadius + 'px';
@@ -192,7 +203,7 @@ class ReactionGame {
         if (claimBestBtn) {
             claimBestBtn.textContent = `${this.textSettings.claimBestButtonText} ${this.bestScore}%`;
             claimBestBtn.style.color = this.textSettings.claimBestButtonTextColor;
-            claimBestBtn.style.fontSize = this.textSettings.claimBestButtonTextSize + 'px';
+            claimBestBtn.style.fontSize = scaleTextSize(this.textSettings.claimBestButtonTextSize) + 'px';
             claimBestBtn.style.fontWeight = this.textSettings.claimBestButtonTextWeight;
             claimBestBtn.style.backgroundColor = this.textSettings.claimBestButtonBgColor;
             claimBestBtn.style.borderRadius = this.gameEndBorderRadius + 'px';
@@ -240,9 +251,25 @@ class ReactionGame {
         // Click and touch support
         this.addClickAndTouch(this.startCircle, () => this.startGame());
         this.addClickAndTouch(this.restartBtn, () => this.restart());
+        
+        // Add resize and orientation change handlers to update text settings
+        window.addEventListener('resize', () => {
+            this.isMobile = window.innerWidth <= 768;
+            this.applyTextSettings();
+        });
+        
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                this.isMobile = window.innerWidth <= 768;
+                this.applyTextSettings();
+            }, 200);
+        });
     }
     
     startGame() {
+        // Track game play
+        this.trackGamePlay();
+        
         this.gameStarted = true;
         this.score = 0;
         this.gameTimeLeft = this.countdownTime;
@@ -260,6 +287,7 @@ class ReactionGame {
         if (this.startMessage) {
             this.startMessage.classList.add('hide');
         }
+        
         // Hide pulse circle
         const pulseCircle = document.querySelector('.start-circle-pulse');
         if (pulseCircle) {
@@ -464,6 +492,13 @@ class ReactionGame {
     }
     
     applyEmailModalSettings() {
+        // Apply mobile scaling factor (0.85) for all text sizes
+        const mobileScaleFactor = 0.85;
+        const scaleTextSize = (size) => {
+            const baseSize = parseFloat(size) || 16;
+            return this.isMobile ? baseSize * mobileScaleFactor : baseSize;
+        };
+        
         const emailModal = document.getElementById('emailModal');
         const emailModalContent = emailModal?.querySelector('.email-modal-content');
         const emailModalHeading = emailModalContent?.querySelector('h3');
@@ -479,21 +514,21 @@ class ReactionGame {
         if (emailModalHeading) {
             emailModalHeading.textContent = this.textSettings.emailModalHeadingText;
             emailModalHeading.style.color = this.textSettings.emailModalHeadingColor;
-            emailModalHeading.style.fontSize = this.textSettings.emailModalHeadingSize + 'px';
+            emailModalHeading.style.fontSize = scaleTextSize(this.textSettings.emailModalHeadingSize) + 'px';
             emailModalHeading.style.fontWeight = this.textSettings.emailModalHeadingWeight;
         }
         
         if (emailModalDescription) {
             emailModalDescription.textContent = this.textSettings.emailModalDescriptionText;
             emailModalDescription.style.color = this.textSettings.emailModalDescriptionColor;
-            emailModalDescription.style.fontSize = this.textSettings.emailModalDescriptionSize + 'px';
+            emailModalDescription.style.fontSize = scaleTextSize(this.textSettings.emailModalDescriptionSize) + 'px';
             emailModalDescription.style.fontWeight = this.textSettings.emailModalDescriptionWeight;
         }
         
         if (emailSubmitBtn) {
             emailSubmitBtn.textContent = this.textSettings.emailModalSubmitText;
             emailSubmitBtn.style.color = this.textSettings.emailModalSubmitColor;
-            emailSubmitBtn.style.fontSize = this.textSettings.emailModalSubmitSize + 'px';
+            emailSubmitBtn.style.fontSize = scaleTextSize(this.textSettings.emailModalSubmitSize) + 'px';
             emailSubmitBtn.style.fontWeight = this.textSettings.emailModalSubmitWeight;
             emailSubmitBtn.style.backgroundColor = this.textSettings.emailModalSubmitBgColor;
             emailSubmitBtn.style.borderRadius = this.emailModalBorderRadius + 'px';
@@ -502,7 +537,7 @@ class ReactionGame {
         if (emailCancelBtn) {
             emailCancelBtn.textContent = this.textSettings.emailModalCancelText;
             emailCancelBtn.style.color = this.textSettings.emailModalCancelColor;
-            emailCancelBtn.style.fontSize = this.textSettings.emailModalCancelSize + 'px';
+            emailCancelBtn.style.fontSize = scaleTextSize(this.textSettings.emailModalCancelSize) + 'px';
             emailCancelBtn.style.fontWeight = this.textSettings.emailModalCancelWeight;
             emailCancelBtn.style.backgroundColor = this.textSettings.emailModalCancelBgColor;
             emailCancelBtn.style.borderRadius = this.emailModalBorderRadius + 'px';
@@ -510,6 +545,13 @@ class ReactionGame {
     }
 
     applyDiscountModalSettings() {
+        // Apply mobile scaling factor (0.85) for all text sizes
+        const mobileScaleFactor = 0.85;
+        const scaleTextSize = (size) => {
+            const baseSize = parseFloat(size) || 16;
+            return this.isMobile ? baseSize * mobileScaleFactor : baseSize;
+        };
+        
         const discountModal = document.getElementById('discountCodeModal');
         const discountModalContent = discountModal?.querySelector('.discount-code-modal-content');
         const discountModalHeading = discountModalContent?.querySelector('h3');
@@ -524,21 +566,21 @@ class ReactionGame {
         if (discountModalHeading) {
             discountModalHeading.textContent = this.textSettings.discountModalHeadingText;
             discountModalHeading.style.color = this.textSettings.discountModalHeadingColor;
-            discountModalHeading.style.fontSize = this.textSettings.discountModalHeadingSize + 'px';
+            discountModalHeading.style.fontSize = scaleTextSize(this.textSettings.discountModalHeadingSize) + 'px';
             discountModalHeading.style.fontWeight = this.textSettings.discountModalHeadingWeight;
         }
         
         const discountCodeDescription = document.getElementById('discountCodeDescription');
         if (discountCodeDescription) {
             discountCodeDescription.style.color = this.textSettings.discountModalDescriptionColor;
-            discountCodeDescription.style.fontSize = this.textSettings.discountModalDescriptionSize + 'px';
+            discountCodeDescription.style.fontSize = scaleTextSize(this.textSettings.discountModalDescriptionSize) + 'px';
             discountCodeDescription.style.fontWeight = this.textSettings.discountModalDescriptionWeight;
         }
         
         if (discountCodeCloseBtn) {
             discountCodeCloseBtn.textContent = this.textSettings.discountModalCloseText;
             discountCodeCloseBtn.style.color = this.textSettings.discountModalCloseColor;
-            discountCodeCloseBtn.style.fontSize = this.textSettings.discountModalCloseSize + 'px';
+            discountCodeCloseBtn.style.fontSize = scaleTextSize(this.textSettings.discountModalCloseSize) + 'px';
             discountCodeCloseBtn.style.fontWeight = this.textSettings.discountModalCloseWeight;
             discountCodeCloseBtn.style.backgroundColor = this.textSettings.discountModalCloseBgColor;
             discountCodeCloseBtn.style.borderRadius = this.discountModalBorderRadius + 'px';
@@ -596,6 +638,13 @@ class ReactionGame {
                 }
                 
                 const handleSubmit = async () => {
+                    // Clear any existing error messages
+                    const existingErrorMsg = document.getElementById('emailErrorMsg');
+                    if (existingErrorMsg) {
+                        existingErrorMsg.style.display = 'none';
+                        existingErrorMsg.textContent = '';
+                    }
+                    
                     // Get fresh reference to input elements
                     const currentEmailInput = document.getElementById('emailInput');
                     const currentFirstNameInput = document.getElementById('firstNameInput');
@@ -627,80 +676,112 @@ class ReactionGame {
                     
                     // Email validation only if email is required
                     if (this.requireEmailToClaim) {
+                        // Helper function to show email error in modal
+                        const showEmailError = (message) => {
+                            const emailModal = document.getElementById('emailModal');
+                            const emailInput = document.getElementById('emailInput');
+                            
+                            // Ensure modal is visible
+                            if (emailModal) {
+                                emailModal.style.display = 'flex';
+                            }
+                            
+                            // Get or create error message element
+                            let emailErrorMsg = document.getElementById('emailErrorMsg');
+                            if (!emailErrorMsg && emailInput && emailInput.parentNode) {
+                                const errorDiv = document.createElement('div');
+                                errorDiv.id = 'emailErrorMsg';
+                                errorDiv.style.color = '#d32f2f';
+                                errorDiv.style.fontSize = '14px';
+                                errorDiv.style.marginTop = '8px';
+                                errorDiv.style.textAlign = 'center';
+                                errorDiv.style.padding = '0 20px';
+                                emailInput.parentNode.insertBefore(errorDiv, emailInput.nextSibling);
+                                emailErrorMsg = errorDiv;
+                            }
+                            
+                            // Display error message
+                            if (emailErrorMsg) {
+                                emailErrorMsg.textContent = message;
+                                emailErrorMsg.style.display = 'block';
+                            } else {
+                                // Fallback to alert if element creation failed
+                                alert(message);
+                            }
+                        };
+                        
                         // Email validation with simple regex and safeguards
-                    // 1. Length validation
-                    if (!email || email.length === 0) {
-                        alert('Please enter a valid email address.');
-                        return;
+                        // 1. Length validation
+                        if (!email || email.length === 0) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        if (email.length > 254) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        
+                        // 2. Basic format checks
+                        if (email.includes(' ')) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        if (email.startsWith('.') || email.startsWith('@')) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        if (email.endsWith('.') || email.endsWith('@')) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        if (email.includes('..')) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        
+                        // 3. Ensure exactly ONE @ symbol
+                        if (email.split('@').length !== 2) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        
+                        // 4. Basic regex check (simple and safe)
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+                        if (!emailRegex.test(email)) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        
+                        // 5. Split and validate parts
+                        const [local, domain] = email.split('@');
+                        
+                        // Local part checks
+                        if (!local || local.startsWith('.') || local.endsWith('.')) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        
+                        // Domain checks
+                        if (!domain || domain.startsWith('.') || domain.endsWith('.')) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        if (!domain.includes('.')) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
+                        
+                        // TLD check
+                        const domainParts = domain.split('.');
+                        const tld = domainParts[domainParts.length - 1];
+                        if (!tld || tld.length < 2) {
+                            showEmailError('Please enter a valid email address.');
+                            return;
+                        }
                     }
-                    if (email.length > 254) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    
-                    // 2. Basic format checks
-                    if (email.includes(' ')) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    if (email.startsWith('.') || email.startsWith('@')) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    if (email.endsWith('.') || email.endsWith('@')) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    if (email.includes('..')) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    
-                    // 3. Ensure exactly ONE @ symbol
-                    if (email.split('@').length !== 2) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    
-                    // 4. Basic regex check (simple and safe)
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-                    if (!emailRegex.test(email)) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    
-                    // 5. Split and validate parts
-                    const [local, domain] = email.split('@');
-                    
-                    // Local part checks
-                    if (!local || local.startsWith('.') || local.endsWith('.')) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    
-                    // Domain checks
-                    if (!domain || domain.startsWith('.') || domain.endsWith('.')) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    if (!domain.includes('.')) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    
-                    // TLD check
-                    const domainParts = domain.split('.');
-                    const tld = domainParts[domainParts.length - 1];
-                    if (!tld || tld.length < 2) {
-                        alert('Please enter a valid email address.');
-                        return;
-                    }
-                    }
-                    
-                    // Hide modal
-                    emailModal.style.display = 'none';
                     
                     // Process discount (use empty email if not required)
+                    // Note: Don't close modal here - it will be closed on success in processDiscountClaim
                     await this.processDiscountClaim(
                         this.requireEmailToClaim ? email : '', 
                         firstName, 
@@ -768,6 +849,25 @@ class ReactionGame {
         }
     }
     
+    trackGamePlay() {
+        if (!this.shop || !this.sessionId) return;
+        
+        fetch(this.appUrl + '/api/track-game-play', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                shop: this.shop,
+                sessionId: this.sessionId,
+                device: this.device,
+                gameType: this.gameType,
+            })
+        }).catch(error => {
+            console.error('Failed to track game play:', error);
+        });
+    }
+    
     async processDiscountClaim(email, firstName = '', lastName = '') {
         try {
             const response = await fetch(this.appUrl + '/api/generate-discount', {
@@ -780,13 +880,22 @@ class ReactionGame {
                     email: email || 'no-email@example.com',
                     firstName: firstName || '',
                     lastName: lastName || '',
+                    device: this.device,
+                    gameType: this.gameType,
                     percentage: this.bestScore,
+                    difficulty: `${Math.round(this.countdownTime)} Seconds`,
                 }),
             });
             
             const data = await response.json();
             
             if (data.success && data.discountCode) {
+                // Hide email modal first (before showing discount modal)
+                const emailModal = document.getElementById('emailModal');
+                if (emailModal) {
+                    emailModal.style.display = 'none';
+                }
+                
                 // Show discount code in custom modal
                 const discountModal = document.getElementById('discountCodeModal');
                 const discountCodeText = document.getElementById('discountCodeText');
@@ -797,25 +906,136 @@ class ReactionGame {
                     this.applyDiscountModalSettings();
                     
                     discountCodeText.value = data.discountCode;
+                    
+                    // Adjust font size based on actual text width
+                    const adjustFontSize = () => {
+                        // Apply mobile scaling factor (0.85) for discount code input
+                        const mobileScaleFactor = 0.85;
+                        const baseFontSize = 18;
+                        const baseMinFontSize = 12;
+                        const defaultFontSize = this.isMobile ? baseFontSize * mobileScaleFactor : baseFontSize;
+                        const minFontSize = this.isMobile ? baseMinFontSize * mobileScaleFactor : baseMinFontSize;
+                        
+                        // Reset to default size first
+                        discountCodeText.style.fontSize = defaultFontSize + 'px';
+                        
+                        // Wait for browser to render and recalculate
+                        setTimeout(() => {
+                            const input = discountCodeText;
+                            let fontSize = defaultFontSize;
+                            
+                            // Force a reflow to ensure accurate measurement
+                            void input.offsetHeight;
+                            
+                            // Only reduce if text doesn't fit at default size
+                            if (input.scrollWidth > input.clientWidth) {
+                                // Reduce font size until text fits
+                                while (input.scrollWidth > input.clientWidth && fontSize > minFontSize) {
+                                    fontSize -= 0.5;
+                                    input.style.fontSize = fontSize + 'px';
+                                    // Force reflow after each change for accurate measurement
+                                    void input.offsetHeight;
+                                }
+                                
+                                // Ensure minimum font size
+                                if (fontSize < minFontSize) {
+                                    input.style.fontSize = minFontSize + 'px';
+                                }
+                            }
+                            // If text fits at default size, fontSize stays at default size (already set above)
+                        }, 10);
+                    };
+                    adjustFontSize();
+                    
                     const discountCodeDescription = document.getElementById('discountCodeDescription');
                     if (discountCodeDescription) {
                         discountCodeDescription.textContent = this.textSettings.discountModalDescriptionText;
                     }
                     discountModal.style.display = 'flex';
                     
+                    // Add copy functionality
+                    const copyBtn = document.getElementById('discountCodeCopyBtn');
+                    if (copyBtn) {
+                        copyBtn.onclick = async () => {
+                            try {
+                                await navigator.clipboard.writeText(discountCodeText.value);
+                                // Visual feedback
+                                const svg = copyBtn.querySelector('svg');
+                                if (svg) {
+                                    const originalColor = svg.style.stroke || 'currentColor';
+                                    svg.style.stroke = '#4caf50';
+                                    setTimeout(() => {
+                                        svg.style.stroke = originalColor;
+                                    }, 500);
+                                }
+                            } catch (err) {
+                                // Fallback for older browsers
+                                discountCodeText.select();
+                                document.execCommand('copy');
+                            }
+                        };
+                    }
+                    
                     if (discountCodeCloseBtn) {
                         discountCodeCloseBtn.onclick = () => {
                             discountModal.style.display = 'none';
+                            // Send message to parent to close popup
+                            if (window.parent && window.parent !== window) {
+                                window.parent.postMessage('closeGamePopup', '*');
+                            }
                         };
                     }
                 }
             } else {
-                alert('Failed to generate discount code. Please try again.');
+                // Check if it's a duplicate email error
+                const isDuplicateEmail = data.error && (
+                    data.error.includes('already claimed') || 
+                    data.error.includes('duplicate')
+                );
+                
+                if (isDuplicateEmail) {
+                    // Show error in email modal instead of alert
+                    const emailModal = document.getElementById('emailModal');
+                    const emailInput = document.getElementById('emailInput');
+                    
+                    // Show modal first (so DOM is ready for element creation)
+                    if (emailModal) {
+                        emailModal.style.display = 'flex';
+                    }
+                    
+                    // Get or create error message element
+                    let emailErrorMsg = document.getElementById('emailErrorMsg');
+                    if (!emailErrorMsg && emailInput && emailInput.parentNode) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.id = 'emailErrorMsg';
+                        errorDiv.style.color = '#d32f2f';
+                        errorDiv.style.fontSize = '14px';
+                        errorDiv.style.marginTop = '8px';
+                        errorDiv.style.textAlign = 'center';
+                        errorDiv.style.padding = '0 20px';
+                        emailInput.parentNode.insertBefore(errorDiv, emailInput.nextSibling);
+                        emailErrorMsg = errorDiv; // Use the created element directly
+                    }
+                    
+                    // Display error message
+                    if (emailErrorMsg) {
+                        emailErrorMsg.textContent = 'You have already claimed discount with this email';
+                        emailErrorMsg.style.display = 'block';
+                    } else {
+                        // Fallback to alert if element creation failed
+                        alert('You have already claimed discount with this email');
+                    }
+                } else {
+                    // Other errors - use alert
+                    alert(data.error || 'Failed to generate discount code. Please try again.');
+                }
+                
                 console.error('Discount generation error:', data.error);
             }
         } catch (error) {
             console.error('Error calling discount API:', error);
             alert('An error occurred while generating your discount code. Please try again.');
+            return { duplicateEmail: false, error: 'An error occurred while generating your discount code. Please try again.' };
         }
     }
 

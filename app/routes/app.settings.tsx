@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useFetcher, useLoaderData } from "react-router";
+import { useFetcher, useLoaderData, redirect } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { checkAppEmbedViaThemeSettings } from "./app.api.check-app-embed";
 import {
   Page,
   Card,
@@ -22,8 +23,10 @@ import {
   Box,
   RadioButton,
   Select,
+  DropZone,
+  Icon,
 } from "@shopify/polaris";
-import { DesktopIcon, MobileIcon } from "@shopify/polaris-icons";
+import { DesktopIcon, MobileIcon, ImageAddIcon } from "@shopify/polaris-icons";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -41,50 +44,279 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     const shop = session.shop;
+    
+    // Check app embed status first
+    const themeCheck = await checkAppEmbedViaThemeSettings(admin, session);
+    
+    // Update database with current status
+    if (themeCheck.success) {
+      await prisma.gameSettings.upsert({
+        where: { shop },
+        update: { appEmbedEnabled: true },
+        create: { 
+          shop, 
+          appEmbedEnabled: true,
+          selectedGame: "bouncing-ball",
+          enabled: true,
+        },
+      });
+    } else {
+      // Update database to reflect disabled state
+      await prisma.gameSettings.upsert({
+        where: { shop },
+        update: { appEmbedEnabled: false },
+        create: { 
+          shop, 
+          appEmbedEnabled: false,
+          selectedGame: "bouncing-ball",
+          enabled: true,
+        },
+      });
+      
+      // Redirect to onboarding if app embed is not enabled
+      return redirect("/onboarding");
+    }
+    
+    // Continue with existing settings loading logic
     let settings = await prisma.gameSettings.findUnique({
-    where: { shop },
-  });
+      where: { shop },
+    });
 
   // Default per-game settings
   const defaultSettings = {
-    "bouncing-ball": {
-      backgroundColor: "#ffffff",
-      ballColor: "#000000",
-      obstacleColor: "#ff0000",
-      popupText: "Discount Game",
-      borderRadius: 10,
-      gameAreaBorderRadius: 10,
-      gameEndBorderRadius: 10,
-      emailModalBorderRadius: 10,
-      discountModalBorderRadius: 10,
-      gameDifficulty: 50,
-      maxDiscount: "35",
-    },
     "horizontal-lines": {
-      backgroundColor: "#ffffff",
-      ballColor: "#000000",
-      obstacleColor: "#ff0000",
+      backgroundColor: "#1F1F1F",
+      ballColor: "#17ACFD",
+      obstacleColor: "#FF3333",
       popupText: "Discount Game",
-      borderRadius: 10,
-      gameAreaBorderRadius: 10,
-      gameEndBorderRadius: 10,
-      emailModalBorderRadius: 10,
-      discountModalBorderRadius: 10,
+      borderRadius: 5,
+      gameAreaBorderRadius: 5,
+      gameEndBorderRadius: 0,
+      emailModalBorderRadius: 0,
+      discountModalBorderRadius: 0,
       gameDifficulty: 50,
       maxDiscount: "35",
+      mainText: "Discount Game",
+      mainTextSize: "28",
+      mainTextColor: "#1F1F1F",
+      mainTextBgColor: "#FFFFFF",
+      mainTextWeight: "600",
+      secondaryText: "Discount:",
+      secondaryTextColor: "#FFFFFF",
+      secondaryTextSize: "24",
+      secondaryTextWeight: "500",
+      rulesText: "1 Score = 1% Discount",
+      rulesTextColor: "#FFFFFF",
+      rulesTextSize: "14",
+      rulesTextWeight: "400",
+      instructionText: "Move left or right",
+      instructionTextColor: "#FFFFFF",
+      instructionTextSize: "16",
+      instructionTextWeight: "400",
+      gameEndText: "Your Discount",
+      gameEndTextColor: "#1F1F1F",
+      gameEndTextSize: "28",
+      gameEndTextWeight: "500",
+      buttonText: "Try Again",
+      buttonTextColor: "#FFFFFF",
+      buttonTextSize: "18",
+      buttonTextWeight: "500",
+      claimBestButtonText: "Claim",
+      claimBestButtonTextColor: "#FFFFFF",
+      claimBestButtonTextSize: "18",
+      claimBestButtonTextWeight: "500",
+      gameEndTabBgColor: "#FFFFFF",
+      buttonBgColor: "#1F1F1F",
+      claimBestButtonBgColor: "#1F1F1F",
+      emailModalHeadingText: "Enter Your Email",
+      emailModalHeadingColor: "#1F1F1F",
+      emailModalHeadingSize: "28",
+      emailModalHeadingWeight: "600",
+      emailModalDescriptionText: "Please enter your email address to claim your discount",
+      emailModalDescriptionColor: "#1F1F1F",
+      emailModalDescriptionSize: "18",
+      emailModalDescriptionWeight: "400",
+      emailModalSubmitText: "Submit",
+      emailModalSubmitColor: "#FFFFFF",
+      emailModalSubmitSize: "18",
+      emailModalSubmitWeight: "500",
+      emailModalCancelText: "Cancel",
+      emailModalCancelColor: "#1F1F1F",
+      emailModalCancelSize: "18",
+      emailModalCancelWeight: "500",
+      emailModalBgColor: "#FFFFFF",
+      emailModalSubmitBgColor: "#1F1F1F",
+      emailModalCancelBgColor: "#CCCCCC",
+      discountModalHeadingText: "Your Discount Code",
+      discountModalHeadingColor: "#1F1F1F",
+      discountModalHeadingSize: "24",
+      discountModalHeadingWeight: "600",
+      discountModalDescriptionText: "Copy your code and use it at checkout!",
+      discountModalDescriptionColor: "#1F1F1F",
+      discountModalDescriptionSize: "16",
+      discountModalDescriptionWeight: "400",
+      discountModalCloseText: "Continue Shopping",
+      discountModalCloseColor: "#FFFFFF",
+      discountModalCloseSize: "16",
+      discountModalCloseWeight: "500",
+      discountModalBgColor: "#FFFFFF",
+      discountModalCloseBgColor: "#1F1F1F",
+    },
+    "bouncing-ball": {
+      backgroundColor: "#15071D",
+      ballColor: "#9162F0",
+      obstacleColor: "#EDD08A",
+      popupText: "Discount Game",
+      borderRadius: 5,
+      gameAreaBorderRadius: 5,
+      gameEndBorderRadius: 0,
+      emailModalBorderRadius: 0,
+      discountModalBorderRadius: 0,
+      gameDifficulty: 50,
+      maxDiscount: "35",
+      mainText: "Discount Game",
+      mainTextSize: "28",
+      mainTextColor: "#15071D",
+      mainTextBgColor: "#FFFFFF",
+      mainTextWeight: "600",
+      secondaryText: "Discount:",
+      secondaryTextColor: "#FFFFFF",
+      secondaryTextSize: "24",
+      secondaryTextWeight: "500",
+      rulesText: "1 Score = 1% Discount",
+      rulesTextColor: "#FFFFFF",
+      rulesTextSize: "14",
+      rulesTextWeight: "400",
+      instructionText: "Click to Bounce",
+      instructionTextColor: "#FFFFFF",
+      instructionTextSize: "16",
+      instructionTextWeight: "400",
+      gameEndText: "Your Discount",
+      gameEndTextColor: "#15071D",
+      gameEndTextSize: "28",
+      gameEndTextWeight: "500",
+      buttonText: "Try Again",
+      buttonTextColor: "#FFFFFF",
+      buttonTextSize: "18",
+      buttonTextWeight: "500",
+      claimBestButtonText: "Claim",
+      claimBestButtonTextColor: "#FFFFFF",
+      claimBestButtonTextSize: "18",
+      claimBestButtonTextWeight: "500",
+      gameEndTabBgColor: "#FFFFFF",
+      buttonBgColor: "#15071D",
+      claimBestButtonBgColor: "#15071D",
+      emailModalHeadingText: "Enter Your Email",
+      emailModalHeadingColor: "#15071D",
+      emailModalHeadingSize: "28",
+      emailModalHeadingWeight: "600",
+      emailModalDescriptionText: "Please enter your email address to claim your discount",
+      emailModalDescriptionColor: "#15071D",
+      emailModalDescriptionSize: "18",
+      emailModalDescriptionWeight: "400",
+      emailModalSubmitText: "Submit",
+      emailModalSubmitColor: "#FFFFFF",
+      emailModalSubmitSize: "18",
+      emailModalSubmitWeight: "500",
+      emailModalCancelText: "Cancel",
+      emailModalCancelColor: "#15071D",
+      emailModalCancelSize: "18",
+      emailModalCancelWeight: "500",
+      emailModalBgColor: "#FFFFFF",
+      emailModalSubmitBgColor: "#15071D",
+      emailModalCancelBgColor: "#CCCCCC",
+      discountModalHeadingText: "Your Discount Code",
+      discountModalHeadingColor: "#15071D",
+      discountModalHeadingSize: "24",
+      discountModalHeadingWeight: "600",
+      discountModalDescriptionText: "Copy your code and use it at checkout!",
+      discountModalDescriptionColor: "#15071D",
+      discountModalDescriptionSize: "16",
+      discountModalDescriptionWeight: "400",
+      discountModalCloseText: "Continue Shopping",
+      discountModalCloseColor: "#FFFFFF",
+      discountModalCloseSize: "16",
+      discountModalCloseWeight: "500",
+      discountModalBgColor: "#FFFFFF",
+      discountModalCloseBgColor: "#15071D",
     },
     "reaction-click": {
       backgroundColor: "#021412",
       ballColor: "#00ce90",
       popupText: "Discount Game",
-      borderRadius: 10,
-      gameAreaBorderRadius: 10,
-      gameEndBorderRadius: 10,
-      emailModalBorderRadius: 10,
-      discountModalBorderRadius: 10,
+      borderRadius: 5,
+      gameAreaBorderRadius: 5,
+      gameEndBorderRadius: 0,
+      emailModalBorderRadius: 0,
+      discountModalBorderRadius: 0,
       gameDifficulty: 50,
       maxDiscount: "35",
       countdownTime: 10,
+      mainText: "Discount Game",
+      mainTextSize: "28",
+      mainTextColor: "#021412",
+      mainTextBgColor: "#FFFFFF",
+      mainTextWeight: "600",
+      secondaryText: "Discount:",
+      secondaryTextColor: "#FFFFFF",
+      secondaryTextSize: "24",
+      secondaryTextWeight: "500",
+      rulesText: "1 Score = 1% Discount",
+      rulesTextColor: "#FFFFFF",
+      rulesTextSize: "14",
+      rulesTextWeight: "400",
+      instructionText: "Click to Start",
+      instructionTextColor: "#FFFFFF",
+      instructionTextSize: "16",
+      instructionTextWeight: "400",
+      gameEndText: "Your Discount",
+      gameEndTextColor: "#021412",
+      gameEndTextSize: "28",
+      gameEndTextWeight: "500",
+      buttonText: "Try Again",
+      buttonTextColor: "#FFFFFF",
+      buttonTextSize: "18",
+      buttonTextWeight: "500",
+      claimBestButtonText: "Claim",
+      claimBestButtonTextColor: "#FFFFFF",
+      claimBestButtonTextSize: "18",
+      claimBestButtonTextWeight: "500",
+      gameEndTabBgColor: "#FFFFFF",
+      buttonBgColor: "#021412",
+      claimBestButtonBgColor: "#021412",
+      emailModalHeadingText: "Enter Your Email",
+      emailModalHeadingColor: "#021412",
+      emailModalHeadingSize: "28",
+      emailModalHeadingWeight: "600",
+      emailModalDescriptionText: "Please enter your email address to claim your discount",
+      emailModalDescriptionColor: "#021412",
+      emailModalDescriptionSize: "18",
+      emailModalDescriptionWeight: "400",
+      emailModalSubmitText: "Submit",
+      emailModalSubmitColor: "#FFFFFF",
+      emailModalSubmitSize: "18",
+      emailModalSubmitWeight: "500",
+      emailModalCancelText: "Cancel",
+      emailModalCancelColor: "#021412",
+      emailModalCancelSize: "18",
+      emailModalCancelWeight: "500",
+      emailModalBgColor: "#FFFFFF",
+      emailModalSubmitBgColor: "#021412",
+      emailModalCancelBgColor: "#CCCCCC",
+      discountModalHeadingText: "Your Discount Code",
+      discountModalHeadingColor: "#021412",
+      discountModalHeadingSize: "24",
+      discountModalHeadingWeight: "600",
+      discountModalDescriptionText: "Copy your code and use it at checkout!",
+      discountModalDescriptionColor: "#021412",
+      discountModalDescriptionSize: "16",
+      discountModalDescriptionWeight: "400",
+      discountModalCloseText: "Continue Shopping",
+      discountModalCloseColor: "#FFFFFF",
+      discountModalCloseSize: "16",
+      discountModalCloseWeight: "500",
+      discountModalBgColor: "#FFFFFF",
+      discountModalCloseBgColor: "#021412",
     },
   };
 
@@ -92,9 +324,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     settings = await prisma.gameSettings.create({
       data: {
         shop,
-        selectedGame: "bouncing-ball",
+        selectedGame: "horizontal-lines",
         enabled: true,
         emailRequired: true,
+        requireName: false,
+        popupDelay: '3',
+        popupDisplayPage: 'any',
+        popupShowOnDesktop: true,
+        popupShowOnMobile: true,
+        showStickyButton: true,
+        stickyButtonText: "Discount Game",
+        stickyButtonColor: "#000000",
+        stickyButtonTextColor: "#ffffff",
+        stickyButtonPosition: "bottom",
+        stickyButtonDisplayPage: "any",
+        stickyButtonShowOnDesktop: true,
+        stickyButtonShowOnMobile: false,
         bouncingBallSettings: defaultSettings["bouncing-ball"],
         horizontalLinesSettings: defaultSettings["horizontal-lines"],
         reactionClickSettings: defaultSettings["reaction-click"],
@@ -131,14 +376,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return { 
     settings: {
       ...settings,
-      discountCodePrefix: settings.discountCodePrefix ?? "wincode",
-      showStickyButton: (settings as any).showStickyButton ?? false,
+      discountCodePrefix: settings.discountCodePrefix ?? "GamePrize",
+      popupShowOnDesktop: (settings as any).popupShowOnDesktop ?? true,
+      popupShowOnMobile: (settings as any).popupShowOnMobile ?? true,
+      popupDelay: (settings as any).popupDelay ?? '3',
+      popupDisplayPage: (settings as any).popupDisplayPage ?? 'any',
+      popupCustomUrls: (settings as any).popupCustomUrls ?? [],
+      showStickyButton: (settings as any).showStickyButton ?? true,
       stickyButtonText: (settings as any).stickyButtonText ?? "Discount Game",
       stickyButtonColor: (settings as any).stickyButtonColor ?? "#000000",
+      stickyButtonTextColor: (settings as any).stickyButtonTextColor ?? "#ffffff",
+      stickyButtonPosition: (settings as any).stickyButtonPosition ?? "bottom",
       stickyButtonDisplayPage: (settings as any).stickyButtonDisplayPage ?? "any",
+      stickyButtonCustomUrls: (settings as any).stickyButtonCustomUrls ?? [],
       stickyButtonShowOnDesktop: (settings as any).stickyButtonShowOnDesktop ?? true,
-      stickyButtonShowOnMobile: (settings as any).stickyButtonShowOnMobile ?? true,
+      stickyButtonShowOnMobile: (settings as any).stickyButtonShowOnMobile ?? false,
       logoUrl: (settings as any).logoUrl ?? null,
+      logoScale: (settings as any).logoScale ?? 100,
+      logoScaleMobile: (settings as any).logoScaleMobile ?? 100,
+      showPopupHeaderText: (settings as any).showPopupHeaderText ?? true,
       bouncingBallSettings,
       horizontalLinesSettings,
       reactionClickSettings,
@@ -176,11 +432,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     const selectedGame = formData.get("selectedGame") as string;
     const enabled = formData.get("enabled") === "true";
+    const popupShowOnDesktop = formData.get("popupShowOnDesktop") === "true";
+    const popupShowOnMobile = formData.get("popupShowOnMobile") === "true";
+    const popupDelay = (formData.get("popupDelay") as string) || "0";
+    const popupDisplayPage = (formData.get("popupDisplayPage") as string) || "any";
+    const popupCustomUrlsJson = formData.get("popupCustomUrls") as string;
+    let popupCustomUrls: string[] = [];
+    try {
+      popupCustomUrls = popupCustomUrlsJson ? JSON.parse(popupCustomUrlsJson) : [];
+    } catch (e) {
+      popupCustomUrls = [];
+    }
     const emailRequired = formData.get("emailRequired") === "true";
     const requireEmailToClaim = formData.get("requireEmailToClaim") === "true";
     const requireName = formData.get("requireName") === "true";
-    const discountCodePrefix = (formData.get("discountCodePrefix") as string) || "wincode";
+    const discountCodePrefix = (formData.get("discountCodePrefix") as string) || "GamePrize";
     const logoUrl = (formData.get("logoUrl") as string) || null;
+    const logoScaleValue = parseInt(formData.get("logoScale") as string);
+    const logoScale = isNaN(logoScaleValue) ? 100 : logoScaleValue;
+    const logoScaleMobileValue = parseInt(formData.get("logoScaleMobile") as string);
+    const logoScaleMobile = isNaN(logoScaleMobileValue) ? 100 : logoScaleMobileValue;
+    const showPopupHeaderText = formData.get("showPopupHeaderText") === "true";
     
     // Handle numeric values that can be 0 - use isNaN check instead of || operator
     const gameDifficultyValue = parseInt(formData.get("gameDifficulty") as string);
@@ -267,7 +539,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const discountModalHeadingColor = (formData.get("discountModalHeadingColor") as string) || "#333333";
     const discountModalHeadingSize = (formData.get("discountModalHeadingSize") as string) || "20";
     const discountModalHeadingWeight = (formData.get("discountModalHeadingWeight") as string) || "600";
-    const discountModalCloseText = (formData.get("discountModalCloseText") as string) || "Close";
+    const discountModalCloseText = (formData.get("discountModalCloseText") as string) || "Continue Shopping";
     const discountModalCloseColor = (formData.get("discountModalCloseColor") as string) || "#ffffff";
     const discountModalCloseSize = (formData.get("discountModalCloseSize") as string) || "16";
     const discountModalCloseWeight = (formData.get("discountModalCloseWeight") as string) || "500";
@@ -282,7 +554,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const showStickyButton = formData.get("showStickyButton") === "true";
     const stickyButtonText = (formData.get("stickyButtonText") as string) || "Discount Game";
     const stickyButtonColor = (formData.get("stickyButtonColor") as string) || "#000000";
+    const stickyButtonTextColor = (formData.get("stickyButtonTextColor") as string) || "#ffffff";
+    const stickyButtonPosition = (formData.get("stickyButtonPosition") as string) || "right";
     const stickyButtonDisplayPage = (formData.get("stickyButtonDisplayPage") as string) || "any";
+    const stickyButtonCustomUrlsJson = formData.get("stickyButtonCustomUrls") as string;
+    let stickyButtonCustomUrls: string[] = [];
+    try {
+      stickyButtonCustomUrls = stickyButtonCustomUrlsJson ? JSON.parse(stickyButtonCustomUrlsJson) : [];
+    } catch (e) {
+      stickyButtonCustomUrls = [];
+    }
     const stickyButtonShowOnDesktop = formData.get("stickyButtonShowOnDesktop") === "true";
     const stickyButtonShowOnMobile = formData.get("stickyButtonShowOnMobile") === "true";
 
@@ -310,236 +591,240 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // Default settings for each game
     const defaultBouncingBall = {
-      backgroundColor: "#ffffff",
-      ballColor: "#000000",
-      obstacleColor: "#ff0000",
+      backgroundColor: "#15071D",
+      ballColor: "#9162F0",
+      obstacleColor: "#EDD08A",
       popupText: "Discount Game",
-      borderRadius: 10,
-      gameAreaBorderRadius: 10,
-      gameEndBorderRadius: 10,
-      emailModalBorderRadius: 10,
-      discountModalBorderRadius: 10,
+      borderRadius: 5,
+      gameAreaBorderRadius: 5,
+      gameEndBorderRadius: 0,
+      emailModalBorderRadius: 0,
+      discountModalBorderRadius: 0,
       gameDifficulty: 50,
       maxDiscount: "35",
       mainText: "Discount Game",
-      mainTextSize: "24",
-      mainTextColor: "#000000",
-      mainTextBgColor: "#ffffff",
+      mainTextSize: "28",
+      mainTextColor: "#15071D",
+      mainTextBgColor: "#FFFFFF",
       mainTextWeight: "600",
       secondaryText: "Discount:",
-      secondaryTextColor: "#000000",
-      secondaryTextSize: "18",
-      secondaryTextWeight: "400",
-      rulesText: "1 Score - 1% Discount",
-      rulesTextColor: "#000000",
+      secondaryTextColor: "#FFFFFF",
+      secondaryTextSize: "24",
+      secondaryTextWeight: "500",
+      rulesText: "1 Score = 1% Discount",
+      rulesTextColor: "#FFFFFF",
       rulesTextSize: "14",
       rulesTextWeight: "400",
       instructionText: "Click to Bounce",
-      instructionTextColor: "#000000",
+      instructionTextColor: "#FFFFFF",
       instructionTextSize: "16",
       instructionTextWeight: "400",
       gameEndText: "Your Discount",
-      gameEndTextColor: "#000000",
-      gameEndTextSize: "20",
-      gameEndTextWeight: "400",
-      buttonText: "Play Again",
-      buttonTextColor: "#ffffff",
-      buttonTextSize: "16",
+      gameEndTextColor: "#15071D",
+      gameEndTextSize: "28",
+      gameEndTextWeight: "500",
+      buttonText: "Try Again",
+      buttonTextColor: "#FFFFFF",
+      buttonTextSize: "18",
       buttonTextWeight: "500",
-      claimBestButtonText: "Claim Best Discount",
-      claimBestButtonBgColor: "#000000",
-      // Email Modal Settings
+      claimBestButtonText: "Claim",
+      claimBestButtonTextColor: "#FFFFFF",
+      claimBestButtonTextSize: "18",
+      claimBestButtonTextWeight: "500",
+      gameEndTabBgColor: "#FFFFFF",
+      buttonBgColor: "#15071D",
+      claimBestButtonBgColor: "#15071D",
       emailModalHeadingText: "Enter Your Email",
-      emailModalHeadingColor: "#333333",
-      emailModalHeadingSize: "20",
+      emailModalHeadingColor: "#15071D",
+      emailModalHeadingSize: "28",
       emailModalHeadingWeight: "600",
-      emailModalDescriptionText: "Please enter your email to claim your discount:",
-      emailModalDescriptionColor: "#333333",
-      emailModalDescriptionSize: "14",
+      emailModalDescriptionText: "Please enter your email address to claim your discount",
+      emailModalDescriptionColor: "#15071D",
+      emailModalDescriptionSize: "18",
       emailModalDescriptionWeight: "400",
       emailModalSubmitText: "Submit",
-      emailModalSubmitColor: "#ffffff",
-      emailModalSubmitSize: "16",
+      emailModalSubmitColor: "#FFFFFF",
+      emailModalSubmitSize: "18",
       emailModalSubmitWeight: "500",
       emailModalCancelText: "Cancel",
-      emailModalCancelColor: "#333333",
-      emailModalCancelSize: "16",
+      emailModalCancelColor: "#15071D",
+      emailModalCancelSize: "18",
       emailModalCancelWeight: "500",
-      emailModalBgColor: "#ffffff",
-      emailModalSubmitBgColor: "#000000",
-      emailModalCancelBgColor: "#cccccc",
-      // Discount Code Modal Settings
+      emailModalBgColor: "#FFFFFF",
+      emailModalSubmitBgColor: "#15071D",
+      emailModalCancelBgColor: "#CCCCCC",
       discountModalHeadingText: "Your Discount Code",
-      discountModalHeadingColor: "#333333",
-      discountModalHeadingSize: "20",
+      discountModalHeadingColor: "#15071D",
+      discountModalHeadingSize: "24",
       discountModalHeadingWeight: "600",
-      discountModalCloseText: "Close",
-      discountModalCloseColor: "#ffffff",
+      discountModalDescriptionText: "Copy your code and use it at checkout!",
+      discountModalDescriptionColor: "#15071D",
+      discountModalDescriptionSize: "16",
+      discountModalDescriptionWeight: "400",
+      discountModalCloseText: "Continue Shopping",
+      discountModalCloseColor: "#FFFFFF",
       discountModalCloseSize: "16",
       discountModalCloseWeight: "500",
-      discountModalBgColor: "#ffffff",
-      discountModalCloseBgColor: "#000000",
-      discountModalDescriptionText: "Copy your code and use it at checkout",
-      discountModalDescriptionColor: "#333333",
-      discountModalDescriptionSize: "14",
-      discountModalDescriptionWeight: "400",
+      discountModalBgColor: "#FFFFFF",
+      discountModalCloseBgColor: "#15071D",
     };
 
   const defaultHorizontalLines = {
-      backgroundColor: "#ffffff",
-      ballColor: "#000000",
-      obstacleColor: "#ff0000",
+      backgroundColor: "#1F1F1F",
+      ballColor: "#17ACFD",
+      obstacleColor: "#FF3333",
       popupText: "Discount Game",
-      borderRadius: 10,
-      gameAreaBorderRadius: 10,
-      gameEndBorderRadius: 10,
-      emailModalBorderRadius: 10,
-      discountModalBorderRadius: 10,
+      borderRadius: 5,
+      gameAreaBorderRadius: 5,
+      gameEndBorderRadius: 0,
+      emailModalBorderRadius: 0,
+      discountModalBorderRadius: 0,
       gameDifficulty: 50,
       maxDiscount: "35",
       mainText: "Discount Game",
-      mainTextSize: "24",
-      mainTextColor: "#000000",
-      mainTextBgColor: "#ffffff",
+      mainTextSize: "28",
+      mainTextColor: "#1F1F1F",
+      mainTextBgColor: "#FFFFFF",
       mainTextWeight: "600",
       secondaryText: "Discount:",
-      secondaryTextColor: "#000000",
-      secondaryTextSize: "18",
-      secondaryTextWeight: "400",
-      rulesText: "1 Score - 1% Discount",
-      rulesTextColor: "#000000",
+      secondaryTextColor: "#FFFFFF",
+      secondaryTextSize: "24",
+      secondaryTextWeight: "500",
+      rulesText: "1 Score = 1% Discount",
+      rulesTextColor: "#FFFFFF",
       rulesTextSize: "14",
       rulesTextWeight: "400",
       instructionText: "Move left or right",
-      instructionTextColor: "#000000",
+      instructionTextColor: "#FFFFFF",
       instructionTextSize: "16",
       instructionTextWeight: "400",
       gameEndText: "Your Discount",
-      gameEndTextColor: "#000000",
-      gameEndTextSize: "20",
-      gameEndTextWeight: "400",
-      buttonText: "Play Again",
-      buttonTextColor: "#ffffff",
-      buttonTextSize: "16",
+      gameEndTextColor: "#1F1F1F",
+      gameEndTextSize: "28",
+      gameEndTextWeight: "500",
+      buttonText: "Try Again",
+      buttonTextColor: "#FFFFFF",
+      buttonTextSize: "18",
       buttonTextWeight: "500",
-      claimBestButtonText: "Claim Best Discount",
-      claimBestButtonBgColor: "#000000",
-      // Email Modal Settings
+      claimBestButtonText: "Claim",
+      claimBestButtonTextColor: "#FFFFFF",
+      claimBestButtonTextSize: "18",
+      claimBestButtonTextWeight: "500",
+      gameEndTabBgColor: "#FFFFFF",
+      buttonBgColor: "#1F1F1F",
+      claimBestButtonBgColor: "#1F1F1F",
       emailModalHeadingText: "Enter Your Email",
-      emailModalHeadingColor: "#333333",
-      emailModalHeadingSize: "20",
+      emailModalHeadingColor: "#1F1F1F",
+      emailModalHeadingSize: "28",
       emailModalHeadingWeight: "600",
-      emailModalDescriptionText: "Please enter your email to claim your discount:",
-      emailModalDescriptionColor: "#333333",
-      emailModalDescriptionSize: "14",
+      emailModalDescriptionText: "Please enter your email address to claim your discount",
+      emailModalDescriptionColor: "#1F1F1F",
+      emailModalDescriptionSize: "18",
       emailModalDescriptionWeight: "400",
       emailModalSubmitText: "Submit",
-      emailModalSubmitColor: "#ffffff",
-      emailModalSubmitSize: "16",
+      emailModalSubmitColor: "#FFFFFF",
+      emailModalSubmitSize: "18",
       emailModalSubmitWeight: "500",
       emailModalCancelText: "Cancel",
-      emailModalCancelColor: "#333333",
-      emailModalCancelSize: "16",
+      emailModalCancelColor: "#1F1F1F",
+      emailModalCancelSize: "18",
       emailModalCancelWeight: "500",
-      emailModalBgColor: "#ffffff",
-      emailModalSubmitBgColor: "#000000",
-      emailModalCancelBgColor: "#cccccc",
-      // Discount Code Modal Settings
+      emailModalBgColor: "#FFFFFF",
+      emailModalSubmitBgColor: "#1F1F1F",
+      emailModalCancelBgColor: "#CCCCCC",
       discountModalHeadingText: "Your Discount Code",
-      discountModalHeadingColor: "#333333",
-      discountModalHeadingSize: "20",
+      discountModalHeadingColor: "#1F1F1F",
+      discountModalHeadingSize: "24",
       discountModalHeadingWeight: "600",
-      discountModalCloseText: "Close",
-      discountModalCloseColor: "#ffffff",
+      discountModalDescriptionText: "Copy your code and use it at checkout!",
+      discountModalDescriptionColor: "#1F1F1F",
+      discountModalDescriptionSize: "16",
+      discountModalDescriptionWeight: "400",
+      discountModalCloseText: "Continue Shopping",
+      discountModalCloseColor: "#FFFFFF",
       discountModalCloseSize: "16",
       discountModalCloseWeight: "500",
-      discountModalBgColor: "#ffffff",
-      discountModalCloseBgColor: "#000000",
-      discountModalDescriptionText: "Copy your code and use it at checkout",
-      discountModalDescriptionColor: "#333333",
-      discountModalDescriptionSize: "14",
-      discountModalDescriptionWeight: "400",
+      discountModalBgColor: "#FFFFFF",
+      discountModalCloseBgColor: "#1F1F1F",
     };
 
   const defaultReactionClick = {
       backgroundColor: "#021412",
       ballColor: "#00ce90",
       popupText: "Discount Game",
-      borderRadius: 10,
-      gameAreaBorderRadius: 10,
-      gameEndBorderRadius: 10,
-      emailModalBorderRadius: 10,
-      discountModalBorderRadius: 10,
+      borderRadius: 5,
+      gameAreaBorderRadius: 5,
+      gameEndBorderRadius: 0,
+      emailModalBorderRadius: 0,
+      discountModalBorderRadius: 0,
       gameDifficulty: 50,
       maxDiscount: "35",
       countdownTime: 10,
       mainText: "Discount Game",
-      mainTextSize: "24",
-      mainTextColor: "#000000",
-      mainTextBgColor: "#ffffff",
+      mainTextSize: "28",
+      mainTextColor: "#021412",
+      mainTextBgColor: "#FFFFFF",
       mainTextWeight: "600",
       secondaryText: "Discount:",
-      secondaryTextColor: "#000000",
-      secondaryTextSize: "18",
-      secondaryTextWeight: "400",
-      rulesText: "1 Score - 1% Discount",
-      rulesTextColor: "#000000",
+      secondaryTextColor: "#FFFFFF",
+      secondaryTextSize: "24",
+      secondaryTextWeight: "500",
+      rulesText: "1 Score = 1% Discount",
+      rulesTextColor: "#FFFFFF",
       rulesTextSize: "14",
       rulesTextWeight: "400",
       instructionText: "Click to Start",
-      instructionTextColor: "#000000",
+      instructionTextColor: "#FFFFFF",
       instructionTextSize: "16",
       instructionTextWeight: "400",
       gameEndText: "Your Discount",
-      gameEndTextColor: "#000000",
-      gameEndTextSize: "20",
-      gameEndTextWeight: "400",
-      buttonText: "Play Again",
-      buttonTextColor: "#ffffff",
-      buttonTextSize: "16",
+      gameEndTextColor: "#021412",
+      gameEndTextSize: "28",
+      gameEndTextWeight: "500",
+      buttonText: "Try Again",
+      buttonTextColor: "#FFFFFF",
+      buttonTextSize: "18",
       buttonTextWeight: "500",
-      claimBestButtonText: "Claim Best Discount",
-      claimBestButtonTextColor: "#ffffff",
-      claimBestButtonTextSize: "16",
+      claimBestButtonText: "Claim",
+      claimBestButtonTextColor: "#FFFFFF",
+      claimBestButtonTextSize: "18",
       claimBestButtonTextWeight: "500",
-      claimBestButtonBgColor: "#000000",
-      gameEndTabBgColor: "#ffffff",
-      buttonBgColor: "#000000",
-      // Email Modal Settings
+      gameEndTabBgColor: "#FFFFFF",
+      buttonBgColor: "#021412",
+      claimBestButtonBgColor: "#021412",
       emailModalHeadingText: "Enter Your Email",
-      emailModalHeadingColor: "#333333",
-      emailModalHeadingSize: "20",
+      emailModalHeadingColor: "#021412",
+      emailModalHeadingSize: "28",
       emailModalHeadingWeight: "600",
-      emailModalDescriptionText: "Please enter your email to claim your discount:",
-      emailModalDescriptionColor: "#333333",
-      emailModalDescriptionSize: "14",
+      emailModalDescriptionText: "Please enter your email address to claim your discount",
+      emailModalDescriptionColor: "#021412",
+      emailModalDescriptionSize: "18",
       emailModalDescriptionWeight: "400",
       emailModalSubmitText: "Submit",
-      emailModalSubmitColor: "#ffffff",
-      emailModalSubmitSize: "16",
+      emailModalSubmitColor: "#FFFFFF",
+      emailModalSubmitSize: "18",
       emailModalSubmitWeight: "500",
       emailModalCancelText: "Cancel",
-      emailModalCancelColor: "#333333",
-      emailModalCancelSize: "16",
+      emailModalCancelColor: "#021412",
+      emailModalCancelSize: "18",
       emailModalCancelWeight: "500",
-      emailModalBgColor: "#ffffff",
-      emailModalSubmitBgColor: "#000000",
-      emailModalCancelBgColor: "#cccccc",
-      // Discount Code Modal Settings
+      emailModalBgColor: "#FFFFFF",
+      emailModalSubmitBgColor: "#021412",
+      emailModalCancelBgColor: "#CCCCCC",
       discountModalHeadingText: "Your Discount Code",
-      discountModalHeadingColor: "#333333",
-      discountModalHeadingSize: "20",
+      discountModalHeadingColor: "#021412",
+      discountModalHeadingSize: "24",
       discountModalHeadingWeight: "600",
-      discountModalCloseText: "Close",
-      discountModalCloseColor: "#ffffff",
+      discountModalDescriptionText: "Copy your code and use it at checkout!",
+      discountModalDescriptionColor: "#021412",
+      discountModalDescriptionSize: "16",
+      discountModalDescriptionWeight: "400",
+      discountModalCloseText: "Continue Shopping",
+      discountModalCloseColor: "#FFFFFF",
       discountModalCloseSize: "16",
       discountModalCloseWeight: "500",
-      discountModalBgColor: "#ffffff",
-      discountModalCloseBgColor: "#000000",
-      discountModalDescriptionText: "Copy your code and use it at checkout",
-      discountModalDescriptionColor: "#333333",
-      discountModalDescriptionSize: "14",
-      discountModalDescriptionWeight: "400",
+      discountModalBgColor: "#FFFFFF",
+      discountModalCloseBgColor: "#021412",
     };
 
     // Get existing settings for each game (preserve other games' settings)
@@ -564,7 +849,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       popupText,
       borderRadius,
       gameDifficulty,
-      maxDiscount,
+      maxDiscount: selectedGame === "reaction-click" ? "50" : maxDiscount,
       ...(selectedGame === "reaction-click" && { countdownTime }),
       mainText,
       mainTextSize,
@@ -648,14 +933,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const updateData: any = {
       selectedGame,
       enabled,
+      popupShowOnDesktop,
+      popupShowOnMobile,
+      popupDelay,
+      popupDisplayPage,
+      popupCustomUrls: popupCustomUrls.length > 0 ? popupCustomUrls : null,
       emailRequired: requireEmailToClaim, // Use requireEmailToClaim for email requirement
       requireName,
       discountCodePrefix,
       logoUrl: logoUrl || null,
+      logoScale: logoScale,
+      logoScaleMobile: logoScaleMobile,
+      showPopupHeaderText: showPopupHeaderText as any,
       showStickyButton,
       stickyButtonText,
       stickyButtonColor,
+      stickyButtonTextColor,
+      stickyButtonPosition,
       stickyButtonDisplayPage,
+      stickyButtonCustomUrls: stickyButtonCustomUrls.length > 0 ? stickyButtonCustomUrls : null,
       stickyButtonShowOnDesktop,
       stickyButtonShowOnMobile,
     };
@@ -682,20 +978,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shop,
         selectedGame,
         enabled,
+        popupShowOnDesktop: popupShowOnDesktop as any,
+        popupShowOnMobile: popupShowOnMobile as any,
+        popupDelay: popupDelay as any,
+        popupDisplayPage: popupDisplayPage as any,
+        popupCustomUrls: popupCustomUrls.length > 0 ? popupCustomUrls : null,
         emailRequired: requireEmailToClaim, // Use requireEmailToClaim for email requirement
         requireName,
         discountCodePrefix,
         logoUrl: (logoUrl || null) as any,
+        showPopupHeaderText: showPopupHeaderText as any,
         showStickyButton: showStickyButton as any,
         stickyButtonText: stickyButtonText as any,
         stickyButtonColor: stickyButtonColor as any,
+        stickyButtonTextColor: stickyButtonTextColor as any,
+        stickyButtonPosition: stickyButtonPosition as any,
         stickyButtonDisplayPage: stickyButtonDisplayPage as any,
+        stickyButtonCustomUrls: stickyButtonCustomUrls.length > 0 ? stickyButtonCustomUrls : null,
         stickyButtonShowOnDesktop: stickyButtonShowOnDesktop as any,
         stickyButtonShowOnMobile: stickyButtonShowOnMobile as any,
         bouncingBallSettings: selectedGame === "bouncing-ball" ? updatedSettings : defaultBouncingBall,
         horizontalLinesSettings: selectedGame === "horizontal-lines" ? updatedSettings : defaultHorizontalLines,
         reactionClickSettings: selectedGame === "reaction-click" ? updatedSettings : defaultReactionClick,
-      },
+      } as any,
     });
 
     return { success: true, settings };
@@ -718,21 +1023,53 @@ export default function Settings() {
     return <Page title="Game Popup Settings">Loading...</Page>;
   }
   
-  const [selectedGame, setSelectedGame] = useState(settings.selectedGame || "bouncing-ball");
+  const [selectedGame, setSelectedGame] = useState(settings.selectedGame || "horizontal-lines");
   const [emailRequired, setEmailRequired] = useState(settings.emailRequired ?? true);
-  const [showAutoPopUp, setShowAutoPopUp] = useState(false);
-  const [showStickyButton, setShowStickyButton] = useState(settings.showStickyButton ?? false);
-  const [popupDelay, setPopupDelay] = useState('0'); // Default to 'immediately'
-  const [popupDisplayPage, setPopupDisplayPage] = useState('any'); // Default to 'any'
-  const [showOnDesktop, setShowOnDesktop] = useState(true);
-  const [showOnMobile, setShowOnMobile] = useState(true);
-  const [customUrls, setCustomUrls] = useState<string[]>(['']); // Start with one empty TextField
+  const [showAutoPopUp, setShowAutoPopUp] = useState(settings.enabled ?? true);
+  const [showStickyButton, setShowStickyButton] = useState(settings.showStickyButton ?? true);
+  const [popupDelay, setPopupDelay] = useState(settings.popupDelay ?? '3');
+  const [popupDisplayPage, setPopupDisplayPage] = useState(settings.popupDisplayPage ?? 'any');
+  const [showOnDesktop, setShowOnDesktop] = useState(settings.popupShowOnDesktop ?? true);
+  const [showOnMobile, setShowOnMobile] = useState(settings.popupShowOnMobile ?? true);
+  const [customUrls, setCustomUrls] = useState<string[]>(
+    settings.popupCustomUrls && Array.isArray(settings.popupCustomUrls) && settings.popupCustomUrls.length > 0
+      ? settings.popupCustomUrls
+      : ['']
+  );
   const [stickyButtonText, setStickyButtonText] = useState(settings.stickyButtonText ?? 'Discount Game');
   const [stickyButtonColor, setStickyButtonColor] = useState(settings.stickyButtonColor ?? '#000000');
+  const [stickyButtonTextColor, setStickyButtonTextColor] = useState(settings.stickyButtonTextColor ?? '#ffffff');
+  const [stickyButtonPosition, setStickyButtonPosition] = useState(settings.stickyButtonPosition ?? 'bottom');
   const [stickyButtonDisplayPage, setStickyButtonDisplayPage] = useState(settings.stickyButtonDisplayPage ?? 'any');
+  const [stickyButtonCustomUrls, setStickyButtonCustomUrls] = useState<string[]>(
+    settings.stickyButtonCustomUrls && Array.isArray(settings.stickyButtonCustomUrls) && settings.stickyButtonCustomUrls.length > 0
+      ? settings.stickyButtonCustomUrls
+      : ['']
+  );
   const [stickyButtonShowOnDesktop, setStickyButtonShowOnDesktop] = useState(settings.stickyButtonShowOnDesktop ?? true);
-  const [stickyButtonShowOnMobile, setStickyButtonShowOnMobile] = useState(settings.stickyButtonShowOnMobile ?? true);
+  const [stickyButtonShowOnMobile, setStickyButtonShowOnMobile] = useState(settings.stickyButtonShowOnMobile ?? false);
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl ?? '');
+  // Convert display value (0-100) to actual value (-25 to 200)
+  const displayToActual = (display: number): number => {
+    return -25 + (display / 100) * 225;
+  };
+
+  // Convert actual value (-25 to 200) to display value (0-100)
+  const actualToDisplay = (actual: number): number => {
+    return ((actual + 25) / 225) * 100;
+  };
+
+  const [logoScaleDisplay, setLogoScaleDisplay] = useState(
+    actualToDisplay(settings.logoScale ?? 100)
+  );
+  const [logoScaleMobileDisplay, setLogoScaleMobileDisplay] = useState(
+    actualToDisplay(settings.logoScaleMobile ?? 100)
+  );
+
+  // Derived actual values for scaling calculations
+  const logoScale = displayToActual(logoScaleDisplay);
+  const logoScaleMobile = displayToActual(logoScaleMobileDisplay);
+  
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
   const handleAddCustomUrl = () => {
@@ -747,6 +1084,20 @@ export default function Settings() {
 
   const handleRemoveCustomUrl = (index: number) => {
     setCustomUrls(customUrls.filter((_, i) => i !== index));
+  };
+
+  const handleAddStickyButtonCustomUrl = () => {
+    setStickyButtonCustomUrls([...stickyButtonCustomUrls, '']); // Add a new empty TextField
+  };
+
+  const handleUpdateStickyButtonCustomUrl = (index: number, value: string) => {
+    const updated = [...stickyButtonCustomUrls];
+    updated[index] = value;
+    setStickyButtonCustomUrls(updated);
+  };
+
+  const handleRemoveStickyButtonCustomUrl = (index: number) => {
+    setStickyButtonCustomUrls(stickyButtonCustomUrls.filter((_, i) => i !== index));
   };
 
   // Get current game settings from separate fields
@@ -901,7 +1252,7 @@ export default function Settings() {
   // State for current game settings
   // Helper function to map difficulty value (0-100) to slider position
   const getDifficultySliderPosition = (value: number, game: string) => {
-    if (game === "horizontal-lines") {
+    if (game === "horizontal-lines" || game === "bouncing-ball") {
       // 5 levels: 0-20, 21-40, 41-60, 61-80, 81-100
       if (value <= 20) return 0;
       if (value <= 40) return 1;
@@ -909,7 +1260,7 @@ export default function Settings() {
       if (value <= 80) return 3;
       return 4;
     } else {
-      // Bouncing ball: 4 levels: 0-25, 26-50, 51-75, 76-100
+      // Default fallback (shouldn't happen for these games)
       if (value <= 25) return 0;
       if (value <= 50) return 1;
       if (value <= 75) return 2;
@@ -919,12 +1270,12 @@ export default function Settings() {
 
   // Helper function to map slider position to difficulty value (0-100)
   const getDifficultyFromSlider = (position: number, game: string) => {
-    if (game === "horizontal-lines") {
+    if (game === "horizontal-lines" || game === "bouncing-ball") {
       // Midpoints: 10, 30, 50, 70, 90
       const difficultyValues = [10, 30, 50, 70, 90];
       return difficultyValues[position] || 50;
     } else {
-      // Bouncing ball: Midpoints: 12, 37, 62, 87
+      // Default fallback (shouldn't happen for these games)
       const difficultyValues = [12, 37, 62, 87];
       return difficultyValues[position] || 37;
     }
@@ -932,8 +1283,8 @@ export default function Settings() {
 
   // Get difficulty labels based on game
   const getDifficultyLabels = (game: string) => {
-    if (game === "horizontal-lines") {
-      return ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'];
+    if (game === "horizontal-lines" || game === "bouncing-ball") {
+      return ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5'];
     } else {
       return ['Easy', 'Medium', 'Hard', 'Very Hard'];
     }
@@ -944,7 +1295,7 @@ export default function Settings() {
     return current.gameDifficulty ?? 50;
   });
 
-  // Slider position state (0-3 for bouncing-ball, 0-4 for horizontal-lines)
+  // Slider position state (0-4 for bouncing-ball and horizontal-lines)
   const [difficultySlider, setDifficultySlider] = useState(() => {
     return getDifficultySliderPosition(gameDifficulty, selectedGame);
   });
@@ -986,6 +1337,9 @@ export default function Settings() {
   });
   const [maxDiscount, setMaxDiscount] = useState(() => {
     const current = getCurrentGameSettings(selectedGame);
+    if (selectedGame === "reaction-click") {
+      return "50"; // Hardcoded to 50 for reaction-click
+    }
     const validValues = ['15', '20', '25', '30', '35', '40', '45', '50', '55', '60', '65', '70', '75'];
     const currentValue = current.maxDiscount ?? "35";
     // If the current value is not in the valid list, default to "35"
@@ -1001,6 +1355,7 @@ export default function Settings() {
   const [requireEmailToClaim, setRequireEmailToClaim] = useState(settings.emailRequired ?? false);
   const [requireName, setRequireName] = useState(settings.requireName ?? false);
   const [discountCode, setDiscountCode] = useState(settings.discountCodePrefix ?? "wincode");
+  const [showPopupHeaderText, setShowPopupHeaderText] = useState(settings.showPopupHeaderText ?? true);
 
   // Text Settings state variables
   const [mainText, setMainText] = useState(() => {
@@ -1331,6 +1686,43 @@ export default function Settings() {
     params.append('emailModalBorderRadius', emailModalBorderRadius.toString());
     params.append('discountModalBorderRadius', discountModalBorderRadius.toString());
     
+    // Email Modal Settings
+    params.append('emailModalHeadingText', emailModalHeadingText);
+    params.append('emailModalHeadingColor', emailModalHeadingColor);
+    params.append('emailModalHeadingSize', emailModalHeadingSize);
+    params.append('emailModalHeadingWeight', emailModalHeadingWeight);
+    params.append('emailModalDescriptionText', emailModalDescriptionText);
+    params.append('emailModalDescriptionColor', emailModalDescriptionColor);
+    params.append('emailModalDescriptionSize', emailModalDescriptionSize);
+    params.append('emailModalDescriptionWeight', emailModalDescriptionWeight);
+    params.append('emailModalSubmitText', emailModalSubmitText);
+    params.append('emailModalSubmitColor', emailModalSubmitColor);
+    params.append('emailModalSubmitSize', emailModalSubmitSize);
+    params.append('emailModalSubmitWeight', emailModalSubmitWeight);
+    params.append('emailModalCancelText', emailModalCancelText);
+    params.append('emailModalCancelColor', emailModalCancelColor);
+    params.append('emailModalCancelSize', emailModalCancelSize);
+    params.append('emailModalCancelWeight', emailModalCancelWeight);
+    params.append('emailModalBgColor', emailModalBgColor);
+    params.append('emailModalSubmitBgColor', emailModalSubmitBgColor);
+    params.append('emailModalCancelBgColor', emailModalCancelBgColor);
+    
+    // Discount Modal Settings
+    params.append('discountModalHeadingText', discountModalHeadingText);
+    params.append('discountModalHeadingColor', discountModalHeadingColor);
+    params.append('discountModalHeadingSize', discountModalHeadingSize);
+    params.append('discountModalHeadingWeight', discountModalHeadingWeight);
+    params.append('discountModalCloseText', discountModalCloseText);
+    params.append('discountModalCloseColor', discountModalCloseColor);
+    params.append('discountModalCloseSize', discountModalCloseSize);
+    params.append('discountModalCloseWeight', discountModalCloseWeight);
+    params.append('discountModalBgColor', discountModalBgColor);
+    params.append('discountModalCloseBgColor', discountModalCloseBgColor);
+    params.append('discountModalDescriptionText', discountModalDescriptionText);
+    params.append('discountModalDescriptionColor', discountModalDescriptionColor);
+    params.append('discountModalDescriptionSize', discountModalDescriptionSize);
+    params.append('discountModalDescriptionWeight', discountModalDescriptionWeight);
+    
     // Add shop and requireEmailToClaim parameters
     params.append('shop', settings.shop || '');
     params.append('requireEmailToClaim', requireEmailToClaim.toString());
@@ -1339,6 +1731,10 @@ export default function Settings() {
     if (selectedGame === 'reaction-click') {
       params.append('countdownTime', countdownTime.toString());
     }
+    
+    // Add mobileScale parameter based on preview mode
+    const mobileScaleFactor = 0.85;
+    params.append('mobileScale', previewMode === 'mobile' ? mobileScaleFactor.toString() : '1.0');
     
     return `${baseUrl}${gamePath}?${params.toString()}`;
   };
@@ -1426,6 +1822,7 @@ export default function Settings() {
     discountModalDescriptionColor,
     discountModalDescriptionSize,
     discountModalDescriptionWeight,
+    previewMode, // Add previewMode to update URL when switching between desktop/mobile
   ]);
 
   // Dropdown options
@@ -1444,12 +1841,12 @@ export default function Settings() {
   ];
 
   const fontWeightOptions = [
-    { label: 'Light (300)', value: '300' },
-    { label: 'Normal (400)', value: '400' },
-    { label: 'Medium (500)', value: '500' },
-    { label: 'Semi-bold (600)', value: '600' },
-    { label: 'Bold (700)', value: '700' },
-    { label: 'Extra-bold (800)', value: '800' },
+    { label: 'Light', value: '300' },
+    { label: 'Regular', value: '400' },
+    { label: 'Medium', value: '500' },
+    { label: 'Semi-Bold', value: '600' },
+    { label: 'Bold', value: '700' },
+    { label: 'Extra-Bold', value: '800' },
   ];
 
   const popupDelayOptions = [
@@ -1477,9 +1874,13 @@ export default function Settings() {
     setGameEndBorderRadius(current.gameEndBorderRadius ?? 10);
     setEmailModalBorderRadius(current.emailModalBorderRadius ?? 10);
     setDiscountModalBorderRadius(current.discountModalBorderRadius ?? 10);
-    const validMaxDiscountValues = ['15', '20', '25', '30', '35', '40', '45', '50', '55', '60', '65', '70', '75'];
-    const currentMaxDiscount = current.maxDiscount ?? "35";
-    setMaxDiscount(validMaxDiscountValues.includes(currentMaxDiscount) ? currentMaxDiscount : "35");
+    if (selectedGame === "reaction-click") {
+      setMaxDiscount("50"); // Hardcoded to 50 for reaction-click
+    } else {
+      const validMaxDiscountValues = ['15', '20', '25', '30', '35', '40', '45', '50', '55', '60', '65', '70', '75'];
+      const currentMaxDiscount = current.maxDiscount ?? "35";
+      setMaxDiscount(validMaxDiscountValues.includes(currentMaxDiscount) ? currentMaxDiscount : "35");
+    }
     setCountdownTime(current.countdownTime ?? 10);
     
     // Text settings
@@ -1583,7 +1984,12 @@ export default function Settings() {
     e.preventDefault();
     const formData = new FormData();
     formData.append("selectedGame", selectedGame);
-    formData.append("enabled", "true"); // Keep enabled for now
+    formData.append("enabled", showAutoPopUp.toString());
+    formData.append("popupShowOnDesktop", showOnDesktop.toString());
+    formData.append("popupShowOnMobile", showOnMobile.toString());
+    formData.append("popupDelay", popupDelay);
+    formData.append("popupDisplayPage", popupDisplayPage);
+    formData.append("popupCustomUrls", JSON.stringify(customUrls.filter(url => url.trim() !== '')));
     formData.append("emailRequired", emailRequired.toString());
     formData.append("gameDifficulty", gameDifficulty.toString());
     formData.append("popupText", popupText);
@@ -1635,12 +2041,18 @@ export default function Settings() {
     formData.append("requireName", requireName.toString());
     formData.append("discountCodePrefix", discountCode);
     formData.append("logoUrl", logoUrl || '');
+    formData.append("logoScale", logoScale.toString());
+    formData.append("logoScaleMobile", logoScaleMobile.toString());
+    formData.append("showPopupHeaderText", showPopupHeaderText.toString());
     
     // Sticky Button Settings
     formData.append("showStickyButton", showStickyButton.toString());
     formData.append("stickyButtonText", stickyButtonText);
     formData.append("stickyButtonColor", stickyButtonColor);
+    formData.append("stickyButtonTextColor", stickyButtonTextColor);
+    formData.append("stickyButtonPosition", stickyButtonPosition);
     formData.append("stickyButtonDisplayPage", stickyButtonDisplayPage);
+    formData.append("stickyButtonCustomUrls", JSON.stringify(stickyButtonCustomUrls.filter(url => url.trim() !== '')));
     formData.append("stickyButtonShowOnDesktop", stickyButtonShowOnDesktop.toString());
     formData.append("stickyButtonShowOnMobile", stickyButtonShowOnMobile.toString());
     
@@ -1686,8 +2098,8 @@ export default function Settings() {
 
   const games = [
     { value: "horizontal-lines", label: "Pass the Gaps" },
-    { value: "reaction-click", label: "Reaction Click" },
     { value: "bouncing-ball", label: "Spike Dodge" },
+    { value: "reaction-click", label: "Reaction Click" },
   ];
 
   const getGameName = (gameValue: string) => {
@@ -1702,9 +2114,16 @@ export default function Settings() {
   const hasObstacles = selectedGame !== "reaction-click";
 
   return (
-    <Page title="">
-      <Form onSubmit={handleSubmit}>
-        <FormLayout>
+    <>
+      <style>{`
+        /* Override Polaris Page max-width for full width */
+        .Polaris-Page {
+          max-width: 1100px !important;
+        }
+      `}</style>
+      <Page title="">
+        <Form onSubmit={handleSubmit}>
+          <FormLayout>
           {showSuccessBanner && (
             <Banner tone="success" onDismiss={() => setShowSuccessBanner(false)}>
               Settings saved successfully!
@@ -1714,7 +2133,7 @@ export default function Settings() {
           {/* 1. Game Preview */}
           <div style={{
             width: '100%',
-            maxWidth: '900px',
+            maxWidth: '100%',
             margin: '0 auto',
             display: 'flex',
             flexDirection: 'column',
@@ -1745,7 +2164,7 @@ export default function Settings() {
             <div style={{
               width: '100%',
               maxWidth: previewMode === 'desktop' ? '1200px' : '400px',
-              backgroundColor: '#858585', // Gray background representing website area
+              backgroundColor: '#858585',
               padding: '40px',
               borderRadius: '8px',
               display: 'flex',
@@ -1753,39 +2172,101 @@ export default function Settings() {
               alignItems: 'center',
               height: previewMode === 'desktop' ? '800px' : '600px',
               minHeight: previewMode === 'desktop' ? '800px' : '600px',
-              position: 'relative', // Add this for absolute positioning of sticky button
+              position: 'relative',
             }}>
               {/* Sticky Button */}
               {showStickyButton && (
-                <div style={{
-                  position: 'absolute',
-                  right: '0',
-                  top: '50%',
-                  zIndex: 10,
-                }}>
+                <>
+                  {/* Close Button */}
                   <button
                     style={{
-                      backgroundColor: stickyButtonColor,
-                      color: 'white',
+                      position: 'absolute',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      backgroundColor: stickyButtonTextColor,
+                      color: stickyButtonColor,
                       border: 'none',
-                      borderRadius: '0px',
-                      padding: '12px 24px',
-                      fontSize: '16px',
-                      fontWeight: '600',
                       cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-                      whiteSpace: 'nowrap',
-                      transform: 'rotate(-90deg) translateY(-50%)',
-                      transformOrigin: 'center right',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      lineHeight: '1',
+                      zIndex: 11,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0,
+                      ...(stickyButtonPosition === 'right' && {
+                        right: '29px',
+                        top: 'calc(40% - -22px)',
+                        transform: 'translateY(-50%)',
+                      }),
+                      ...(stickyButtonPosition === 'left' && {
+                        left: '29px',
+                        top: 'calc(40% - -22px)',
+                        transform: 'translateY(-50%)',
+                      }),
+                      ...(stickyButtonPosition === 'bottom' && {
+                        bottom: '30px',
+                        left: 'calc(50% + 82px)',
+                        transform: 'translateX(-50%)',
+                      }),
                     }}
+                    onClick={() => setShowStickyButton(false)}
                   >
-                    {stickyButtonText || 'Discount Game'}
+                    ×
                   </button>
-                </div>
+                  {/* Sticky Button */}
+                  <div style={{
+                    position: 'absolute',
+                    ...(stickyButtonPosition === 'right' && {
+                      right: '0',
+                      top: '40%',
+                    }),
+                    ...(stickyButtonPosition === 'bottom' && {
+                      bottom: '0',
+                      left: '50%',
+                    }),
+                    ...(stickyButtonPosition === 'left' && {
+                      left: '0',
+                      top: '40%',
+                    }),
+                    zIndex: 10,
+                  }}>
+                    <button
+                      style={{
+                        backgroundColor: stickyButtonColor,
+                        color: stickyButtonTextColor,
+                        border: 'none',
+                        borderRadius: '0px',
+                        padding: '12px 24px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                        whiteSpace: 'nowrap',
+                        ...(stickyButtonPosition === 'right' && {
+                          transform: 'rotate(-90deg) translateY(-50%)',
+                          transformOrigin: 'center right',
+                        }),
+                        ...(stickyButtonPosition === 'bottom' && {
+                          transform: 'translateX(-50%)',
+                          transformOrigin: 'center',
+                        }),
+                        ...(stickyButtonPosition === 'left' && {
+                          transform: 'rotate(90deg) translateY(-50%)',
+                          transformOrigin: 'center left',
+                        }),
+                      }}
+                    >
+                      {stickyButtonText || 'Discount Game'}
+                    </button>
+                  </div>
+                </>
               )}
 
               <div style={{
-                width: previewMode === 'desktop' ? '80%' : '375px',
+                width: previewMode === 'desktop' ? '900px' : '375px',
                 maxWidth: previewMode === 'desktop' ? '900px' : '300px',
                 background: 'white',
                 borderRadius: borderRadius + 'px',
@@ -1795,68 +2276,90 @@ export default function Settings() {
                 flexDirection: 'column',
                 border: '0px solid #e1e3e5',
                 transition: 'width 0.3s ease',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', // Optional: add shadow for depth
-                height: previewMode === 'desktop' ? '564px' : '484px', // Fixed height: header (~64px) + game (500px/420px)
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                height: previewMode === 'desktop' ? '600px' : '484px',
               }}>
                 {/* Preview Logo */}
-                {logoUrl && logoUrl.trim() !== '' && (
-                  <div style={{
-                    backgroundColor: 'white',
-                    padding: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderBottom: '1px solid #e0e0e0',
-                    flexShrink: 0, // Don't shrink - matches website
-                  }}>
-                    <img 
-                      src={logoUrl} 
-                      alt="Logo preview" 
-                      style={{
-                        maxWidth: '200px',
-                        maxHeight: '100px',
-                        objectFit: 'contain',
-                      }}
-                      onError={(e) => {
-                        console.error('Failed to load logo in preview:', logoUrl);
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  </div>
-                )}
+                {logoUrl && logoUrl.trim() !== '' && (() => {
+                  const baseHeight = previewMode === 'desktop' ? 80 : 60;
+                  const currentLogoScale = previewMode === 'desktop' ? logoScale : logoScaleMobile;
+                  const scaleFactor = 1 + currentLogoScale / 25;
+                  const scaledHeight = (baseHeight * scaleFactor) + 'px';
+                  
+                  return (
+                    <div style={{
+                      backgroundColor: 'white',
+                      padding: '0 0px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      height: baseHeight + 'px',
+                      overflow: 'hidden',
+                    }}>
+                      <img 
+                        src={logoUrl} 
+                        alt="Logo preview" 
+                        style={{
+                          maxHeight: scaledHeight,
+                          height: scaledHeight,
+                          width: 'auto',
+                          objectFit: 'contain',
+                          display: 'block',
+                          transform: 'none',
+                          transformOrigin: 'center center',
+                        }}
+                        onError={(e) => {
+                          console.error('Failed to load logo in preview:', logoUrl);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  );
+                })()}
 
                 {/* Preview Popup Header */}
-                <div style={{
-                  backgroundColor: mainTextBgColor,
-                  padding: '20px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderBottom: 'none',
-                  flexShrink: 0, // Don't shrink - matches website
-                }}>
+                {showPopupHeaderText && mainText && mainText.trim() !== '' && (
                   <div style={{
-                    color: mainTextColor,
-                    fontSize: mainTextSize + 'px',
-                    lineHeight: mainTextSize + 'px',
-                    margin: 0,
-                    padding: 0,
-                    fontWeight: parseInt(mainTextWeight) || 600,
-                    fontFamily: "'Poppins', sans-serif",
-                    textAlign: 'center',
-                    width: '100%',
+                    backgroundColor: mainTextBgColor,
+                    padding: previewMode === 'mobile' ? '15px 20px' : '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderBottom: 'none',
+                    flexShrink: 0,
                   }}>
-                    {mainText}
+                    <div style={{
+                      color: mainTextColor,
+                      fontSize: (() => {
+                        const baseSize = parseInt(mainTextSize) || 24;
+                        const mobileScaleFactor = 0.85;
+                        return previewMode === 'mobile' ? baseSize * mobileScaleFactor : baseSize;
+                      })() + 'px',
+                      lineHeight: (() => {
+                        const baseSize = parseInt(mainTextSize) || 24;
+                        const mobileScaleFactor = 0.85;
+                        return previewMode === 'mobile' ? baseSize * mobileScaleFactor : baseSize;
+                      })() + 'px',
+                      margin: 0,
+                      padding: 0,
+                      fontWeight: parseInt(mainTextWeight) || 600,
+                      fontFamily: "'Poppins', sans-serif",
+                      textAlign: 'center',
+                      width: '100%',
+                    }}>
+                      {mainText}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Preview Game Iframe */}
                 {previewGameUrl && (
                   <div style={{
                     width: '100%',
-                    flex: 1, // Take remaining space - matches website
-                    minHeight: 0, // Allow flexbox to shrink it
+                    flex: 1,
+                    minHeight: 0,
                     overflow: 'hidden',
                     position: 'relative',
                   }}>
@@ -1879,7 +2382,7 @@ export default function Settings() {
           {/* Settings Container - matches preview width */}
           <div style={{
             width: '100%',
-            maxWidth: '900px',
+            maxWidth: '100%',
             margin: '6px auto 0 auto',
           }}>
             {/* 2. Game Selection Card */}
@@ -1979,7 +2482,11 @@ export default function Settings() {
                     </Text>
                   </div>
                   <RangeSlider
-                    label={`Countdown Time ${countdownTime} seconds`}
+                    label={
+                      <span>
+                        <span style={{ fontWeight: 'bold' }}>Countdown Time:</span> {countdownTime} seconds
+                      </span>
+                    }
                     value={countdownTime}
                     onChange={setCountdownTime}
                     min={5}
@@ -1987,39 +2494,45 @@ export default function Settings() {
                     step={1}
                     output
                   />
+                  <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280', marginTop: '5px' }}>
+                    Players will have {countdownTime} seconds to click as many circles as possible
+                  </div>
                 </BlockStack>
               )}
 
-              {/* Divider above Maximum Discount Win */}
-              <div style={{
-                height: '1px',
-                backgroundColor: '#e1e3e5',
-                marginTop: '0px',
-                marginBottom: '0px',
-              }} />
-
-              {/* Maximum Discount Win (for all games) */}
-              <BlockStack gap="300">
-                <div style={{ textAlign: 'center' }}>
-                  <Text variant="headingMd" as="h2">
-                    Maximum Discount Win
-                  </Text>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-                  {['15', '20', '25', '30', '35', '40', '45', '50', '55', '60', '65', '70', '75'].map((value) => (
-                    <RadioButton
-                      key={value}
-                      label={`${value}%`}
-                      checked={maxDiscount === value}
-                      onChange={() => setMaxDiscount(value)}
-                      id={`maxDiscount-${value}`}
-                    />
-                  ))}
-                </div>
-                <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280', marginTop: '0px' }}>
-                  Game ends with confetti when {maxDiscount}% is reached
-                </div>
-              </BlockStack>
+              {/* Maximum Discount Win (hidden for reaction-click) */}
+              {selectedGame !== "reaction-click" && (
+                <>
+                  {/* Divider above Maximum Discount Win */}
+                  <div style={{
+                    height: '1px',
+                    backgroundColor: '#e1e3e5',
+                    marginTop: '0px',
+                    marginBottom: '0px',
+                  }} />
+                <BlockStack gap="300">
+                  <div style={{ textAlign: 'center' }}>
+                    <Text variant="headingMd" as="h2">
+                      Maximum Discount Win
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                    {['15', '20', '25', '30', '35', '40', '45', '50', '55', '60', '65', '70', '75'].map((value) => (
+                      <RadioButton
+                        key={value}
+                        label={`${value}%`}
+                        checked={maxDiscount === value}
+                        onChange={() => setMaxDiscount(value)}
+                        id={`maxDiscount-${value}`}
+                      />
+                    ))}
+                  </div>
+                  <div style={{ textAlign: 'center', fontSize: '12px', color: '#6B7280', marginTop: '0px' }}>
+                    Game ends with confetti when {maxDiscount}% is reached
+                  </div>
+                </BlockStack>
+                </>
+              )}
 
             </BlockStack>
           </Card>
@@ -2042,34 +2555,11 @@ export default function Settings() {
                       <Text variant="headingLg" as="h2">Pop Up Header</Text>
                     </div>
                     
-                    {/* Logo URL Input */}
-                    <div style={{ marginTop: '6px' }}>
-                      <BlockStack gap="200">
-                        <Text variant="headingMd" as="p" alignment="center">Logo Image URL</Text>
-                        <TextField
-                          label=""
-                          value={logoUrl}
-                          onChange={setLogoUrl}
-                          placeholder="https://example.com/logo.png"
-                          autoComplete="off"
-                          helpText="Enter a URL to an image that will appear above the pop-up header"
-                        />
-                        {logoUrl && (
-                          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
-                            <Thumbnail
-                              source={logoUrl}
-                              alt="Logo preview"
-                              size="medium"
-                            />
-                          </div>
-                        )}
-                      </BlockStack>
-                    </div>
-                    
-                    {/* Pop Up Text Settings - 4 column grid */}
+                    {/* Pop Up Text Settings - 6 column grid */}
                     <div style={{ marginTop: '6px' }}>
                       <BlockStack gap="300">
-                        <InlineGrid columns={4} gap="400">
+                        <InlineGrid columns={6} gap="400">
+                          {/* Column 1: Pop Up Text */}
                           <BlockStack gap="100">
                             <Text variant="headingMd" as="p">Pop Up Text</Text>
                             <TextField
@@ -2079,6 +2569,8 @@ export default function Settings() {
                               autoComplete="off"
                             />
                           </BlockStack>
+                          
+                          {/* Column 2: Text Size */}
                           <BlockStack gap="100">
                             <div style={{ fontWeight: 400 }}>
                               <Text variant="bodyMd" as="p">Text Size</Text>
@@ -2090,6 +2582,8 @@ export default function Settings() {
                               onChange={setMainTextSize}
                             />
                           </BlockStack>
+                          
+                          {/* Column 3: Text Weight */}
                           <BlockStack gap="100">
                             <div style={{ fontWeight: 400 }}>
                               <Text variant="bodyMd" as="p">Text Weight</Text>
@@ -2101,6 +2595,8 @@ export default function Settings() {
                               onChange={setMainTextWeight}
                             />
                           </BlockStack>
+                          
+                          {/* Column 4: Text Color */}
                           <BlockStack gap="100">
                             <div style={{ fontWeight: 400 }}>
                               <Text variant="bodyMd" as="p">Text Color</Text>
@@ -2109,41 +2605,228 @@ export default function Settings() {
                               label="Main Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={mainTextColor}
-                              onInput={(e) => setMainTextColor(e.currentTarget.value)}
+                              onChange={(e) => setMainTextColor(e.currentTarget.value)}
+                              onBlur={(e) => setMainTextColor(e.currentTarget.value)}
                               placeholder="#000000"
                             />
+                          </BlockStack>
+                          
+                          {/* Column 5: Background Color */}
+                          <BlockStack gap="100">
+                            <div style={{ fontWeight: 400 }}>
+                              <Text variant="bodyMd" as="p">Background Color</Text>
+                            </div>
+                            <s-color-field
+                              label="Main Text Background Color"
+                              labelAccessibilityVisibility="exclusive"
+                              value={mainTextBgColor}
+                              onChange={(e) => setMainTextBgColor(e.currentTarget.value)}
+                              onBlur={(e) => setMainTextBgColor(e.currentTarget.value)}
+                              placeholder="#ffffff"
+                            />
+                          </BlockStack>
+                          
+                          {/* Column 6: Show Popup Header Text ButtonGroup */}
+                          <BlockStack gap="0">
+                            <div style={{ fontWeight: 400, marginTop: '0px', marginBottom: '8px' }}>
+                              <Text variant="bodyMd" as="p">Header Text</Text>
+                            </div>
+                            <ButtonGroup variant="segmented">
+                              <Button
+                                onClick={() => setShowPopupHeaderText(true)}
+                                variant="secondary"
+                                pressed={showPopupHeaderText}
+                              >
+                                Visible
+                              </Button>
+                              <Button
+                                onClick={() => setShowPopupHeaderText(false)}
+                                variant="secondary"
+                                pressed={!showPopupHeaderText}
+                              >
+                                Hidden
+                              </Button>
+                            </ButtonGroup>
                           </BlockStack>
                         </InlineGrid>
                       </BlockStack>
                     </div>
 
-                    {/* Pop Up Background Color and Border Radius - 2 column grid */}
+                    {/* Pop Up Border Radius */}
                     <div style={{ marginTop: '6px' }}>
                       <BlockStack gap="300">
-                        <InlineGrid columns={2} gap="400">
-                          <BlockStack gap="100">
-                            <Text variant="headingMd" as="p">Background Color</Text>
-                            <s-color-field
-                              label="Main Text Background Color"
-                              labelAccessibilityVisibility="exclusive"
-                              value={mainTextBgColor}
-                              onInput={(e) => setMainTextBgColor(e.currentTarget.value)}
-                              placeholder="#ffffff"
-                            />
-                          </BlockStack>
-                          <BlockStack gap="200">
-                            <Text variant="headingMd" as="p">Border Radius</Text>
-                            <RangeSlider
-                              label=""
-                              value={borderRadius}
-                              onChange={setBorderRadius}
-                              min={0}
-                              max={25}
-                              output
-                              suffix="px"
-                            />
-                          </BlockStack>
-                        </InlineGrid>
+                        <BlockStack gap="200">
+                          <Text variant="headingMd" as="p" alignment="center">
+                            Corner Radius: <span style={{ fontWeight: 'normal' }}>{borderRadius}px</span>
+                          </Text>
+                          <RangeSlider
+                            label=""
+                            value={borderRadius}
+                            onChange={setBorderRadius}
+                            min={0}
+                            max={25}
+                            output
+                            suffix="px"
+                          />
+                        </BlockStack>
+                      </BlockStack>
+                    </div>
+
+                    {/* Logo Upload */}
+                    <div style={{ marginTop: '6px' }}>
+                      <BlockStack gap="200">
+                        <Text variant="headingMd" as="p" alignment="center">Header Image</Text>
+                        
+                        <DropZone
+                          accept="image/*"
+                          type="file"
+                          onDrop={(files: File[]) => {
+                            if (files.length > 0) {
+                              const file = files[0];
+                              const formData = new FormData();
+                              formData.append("file", file);
+                              
+                              // Upload to Railway Storage
+                              fetch("/api/upload-logo", {
+                                method: "POST",
+                                body: formData,
+                              })
+                                .then((res) => res.json())
+                                .then((data) => {
+                                  if (data.url) {
+                                    console.log("Upload successful, URL:", data.url); // Debug
+                                    setLogoUrl(data.url);
+                                    
+                                    // Test if image loads through proxy
+                                    const img = new Image();
+                                    img.onload = () => {
+                                      console.log("Image loaded successfully through proxy");
+                                    };
+                                    img.onerror = () => {
+                                      console.error("Image failed to load from proxy URL:", data.url);
+                                      // Don't show alert, just log - the URL is still saved
+                                    };
+                                    img.src = data.url;
+                                  } else {
+                                    console.error("Upload failed:", data.error, data.details);
+                                    alert(`Upload failed: ${data.error || "Unknown error"}\n${data.details || ""}`);
+                                  }
+                                })
+                                .catch((error) => {
+                                  console.error("Upload error:", error);
+                                  alert("Upload error: " + error.message);
+                                });
+                            }
+                          }}
+                        >
+                          {logoUrl ? (
+                            <div style={{ padding: '20px', textAlign: 'center' }}>
+                              <BlockStack gap="200" align="center">
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                  <Thumbnail
+                                    source={logoUrl}
+                                    alt="Logo preview"
+                                    size="large"
+                                  />
+                                </div>
+                                
+                                <div 
+                                  style={{ display: 'inline-block' }}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                >
+                                  <Button
+                                    variant="secondary"
+                                    tone="critical"
+                                    onClick={() => setLogoUrl('')}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              </BlockStack>
+                            </div>
+                          ) : (
+                            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                              <BlockStack gap="200" align="center">
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                  <div style={{ transform: 'scale(1.5)' }}>
+                                    <Icon source={ImageAddIcon} />
+                                  </div>
+                                </div>
+                                <BlockStack gap="100" align="center">
+                                  <Text variant="bodyMd" as="p">
+                                    Drop image here or upload
+                                  </Text>
+                                  <Text variant="bodySm" as="p" tone="subdued">
+                                    Supports: JPG, PNG, GIF, WebP (Max 2MB)
+                                  </Text>
+                                </BlockStack>
+                              </BlockStack>
+                            </div>
+                          )}
+                        </DropZone>
+                        
+                        {/* Logo Size Slider - Moved outside DropZone */}
+                        {logoUrl && (
+                          <div style={{ width: '100%', padding: '0 20px', marginTop: '10px' }}>
+                            <BlockStack gap="100">
+                              <div style={{ textAlign: 'center' }}>
+                                <Text variant="headingMd" as="p">Image size</Text>
+                              </div>
+                              <InlineGrid columns={2} gap="400">
+                              {/* Desktop Size Slider */}
+                              <BlockStack gap="200">
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                  <div style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <Icon source={DesktopIcon} />
+                                  </div>
+                                  <Text variant="bodyMd" as="span">
+                                    Desktop
+                                  </Text>
+                                </div>
+                                <RangeSlider
+                                  label=""
+                                  value={logoScaleDisplay}
+                                  onChange={(value) => {
+                                    const numValue = typeof value === 'number' ? value : value[0];
+                                    setLogoScaleDisplay(numValue);
+                                  }}
+                                  min={0}
+                                  max={100}
+                                  step={1}
+                                  output
+                                />
+                              </BlockStack>
+                              
+                              {/* Mobile Size Slider */}
+                              <BlockStack gap="200">
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                  <div style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <Icon source={MobileIcon} />
+                                  </div>
+                                  <Text variant="bodyMd" as="span">
+                                    Mobile
+                                  </Text>
+                                </div>
+                                <RangeSlider
+                                  label=""
+                                  value={logoScaleMobileDisplay}
+                                  onChange={(value) => {
+                                    const numValue = typeof value === 'number' ? value : value[0];
+                                    setLogoScaleMobileDisplay(numValue);
+                                  }}
+                                  min={0}
+                                  max={100}
+                                  step={1}
+                                  output
+                                />
+                              </BlockStack>
+                            </InlineGrid>
+                            </BlockStack>
+                          </div>
+                        )}
                       </BlockStack>
                     </div>
                   </BlockStack>
@@ -2170,7 +2853,8 @@ export default function Settings() {
                               label="Game Background Color"
                               labelAccessibilityVisibility="exclusive"
                               value={backgroundColor}
-                              onInput={(e) => setBackgroundColor(e.currentTarget.value)}
+                              onChange={(e) => setBackgroundColor(e.currentTarget.value)}
+                              onBlur={(e) => setBackgroundColor(e.currentTarget.value)}
                               placeholder="#ffffff"
                             />
                           </BlockStack>
@@ -2182,7 +2866,8 @@ export default function Settings() {
                               label="Game Ball Color"
                               labelAccessibilityVisibility="exclusive"
                               value={ballColor}
-                              onInput={(e) => setBallColor(e.currentTarget.value)}
+                              onChange={(e) => setBallColor(e.currentTarget.value)}
+                              onBlur={(e) => setBallColor(e.currentTarget.value)}
                               placeholder="#000000"
                             />
                           </BlockStack>
@@ -2195,7 +2880,8 @@ export default function Settings() {
                                 label="Game Obstacles Color"
                                 labelAccessibilityVisibility="exclusive"
                                 value={obstacleColor}
-                                onInput={(e) => setObstacleColor(e.currentTarget.value)}
+                                onChange={(e) => setObstacleColor(e.currentTarget.value)}
+                                onBlur={(e) => setObstacleColor(e.currentTarget.value)}
                                 placeholder="#ff0000"
                               />
                             </BlockStack>
@@ -2247,7 +2933,8 @@ export default function Settings() {
                               label="Secondary Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={secondaryTextColor}
-                              onInput={(e) => setSecondaryTextColor(e.currentTarget.value)}
+                              onChange={(e) => setSecondaryTextColor(e.currentTarget.value)}
+                              onBlur={(e) => setSecondaryTextColor(e.currentTarget.value)}
                               placeholder="#000000"
                             />
                           </BlockStack>
@@ -2298,7 +2985,8 @@ export default function Settings() {
                               label="Rules Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={rulesTextColor}
-                              onInput={(e) => setRulesTextColor(e.currentTarget.value)}
+                              onChange={(e) => setRulesTextColor(e.currentTarget.value)}
+                              onBlur={(e) => setRulesTextColor(e.currentTarget.value)}
                               placeholder="#000000"
                             />
                           </BlockStack>
@@ -2349,7 +3037,8 @@ export default function Settings() {
                               label="Instruction Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={instructionTextColor}
-                              onInput={(e) => setInstructionTextColor(e.currentTarget.value)}
+                              onChange={(e) => setInstructionTextColor(e.currentTarget.value)}
+                              onBlur={(e) => setInstructionTextColor(e.currentTarget.value)}
                               placeholder="#000000"
                             />
                           </BlockStack>
@@ -2405,7 +3094,8 @@ export default function Settings() {
                               label="Game End Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={gameEndTextColor}
-                              onInput={(e) => setGameEndTextColor(e.currentTarget.value)}
+                              onChange={(e) => setGameEndTextColor(e.currentTarget.value)}
+                              onBlur={(e) => setGameEndTextColor(e.currentTarget.value)}
                               placeholder="#000000"
                             />
                           </BlockStack>
@@ -2456,7 +3146,8 @@ export default function Settings() {
                               label="Button Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={buttonTextColor}
-                              onInput={(e) => setButtonTextColor(e.currentTarget.value)}
+                              onChange={(e) => setButtonTextColor(e.currentTarget.value)}
+                              onBlur={(e) => setButtonTextColor(e.currentTarget.value)}
                               placeholder="#ffffff"
                             />
                           </BlockStack>
@@ -2507,7 +3198,8 @@ export default function Settings() {
                               label="Claim Best Button Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={claimBestButtonTextColor}
-                              onInput={(e) => setClaimBestButtonTextColor(e.currentTarget.value)}
+                              onChange={(e) => setClaimBestButtonTextColor(e.currentTarget.value)}
+                              onBlur={(e) => setClaimBestButtonTextColor(e.currentTarget.value)}
                               placeholder="#ffffff"
                             />
                           </BlockStack>
@@ -2525,7 +3217,8 @@ export default function Settings() {
                               label="Game End Tab Background Color"
                               labelAccessibilityVisibility="exclusive"
                               value={gameEndTabBgColor}
-                              onInput={(e) => setGameEndTabBgColor(e.currentTarget.value)}
+                              onChange={(e) => setGameEndTabBgColor(e.currentTarget.value)}
+                              onBlur={(e) => setGameEndTabBgColor(e.currentTarget.value)}
                               placeholder="#ffffff"
                             />
                           </BlockStack>
@@ -2535,7 +3228,8 @@ export default function Settings() {
                               label="Play Again Button Color"
                               labelAccessibilityVisibility="exclusive"
                               value={buttonBgColor}
-                              onInput={(e) => setButtonBgColor(e.currentTarget.value)}
+                              onChange={(e) => setButtonBgColor(e.currentTarget.value)}
+                              onBlur={(e) => setButtonBgColor(e.currentTarget.value)}
                               placeholder="#000000"
                             />
                           </BlockStack>
@@ -2545,7 +3239,8 @@ export default function Settings() {
                               label="Claim Discount Button Color"
                               labelAccessibilityVisibility="exclusive"
                               value={claimBestButtonBgColor}
-                              onInput={(e) => setClaimBestButtonBgColor(e.currentTarget.value)}
+                              onChange={(e) => setClaimBestButtonBgColor(e.currentTarget.value)}
+                              onBlur={(e) => setClaimBestButtonBgColor(e.currentTarget.value)}
                               placeholder="#000000"
                             />
                           </BlockStack>
@@ -2637,7 +3332,8 @@ export default function Settings() {
                               label="Email Modal Heading Color"
                               labelAccessibilityVisibility="exclusive"
                               value={emailModalHeadingColor}
-                              onInput={(e) => setEmailModalHeadingColor(e.currentTarget.value)}
+                              onChange={(e) => setEmailModalHeadingColor(e.currentTarget.value)}
+                              onBlur={(e) => setEmailModalHeadingColor(e.currentTarget.value)}
                               placeholder="#333333"
                             />
                           </BlockStack>
@@ -2688,7 +3384,8 @@ export default function Settings() {
                               label="Email Modal Description Color"
                               labelAccessibilityVisibility="exclusive"
                               value={emailModalDescriptionColor}
-                              onInput={(e) => setEmailModalDescriptionColor(e.currentTarget.value)}
+                              onChange={(e) => setEmailModalDescriptionColor(e.currentTarget.value)}
+                              onBlur={(e) => setEmailModalDescriptionColor(e.currentTarget.value)}
                               placeholder="#333333"
                             />
                           </BlockStack>
@@ -2739,7 +3436,8 @@ export default function Settings() {
                               label="Email Modal Submit Button Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={emailModalSubmitColor}
-                              onInput={(e) => setEmailModalSubmitColor(e.currentTarget.value)}
+                              onChange={(e) => setEmailModalSubmitColor(e.currentTarget.value)}
+                              onBlur={(e) => setEmailModalSubmitColor(e.currentTarget.value)}
                               placeholder="#ffffff"
                             />
                           </BlockStack>
@@ -2790,7 +3488,8 @@ export default function Settings() {
                               label="Email Modal Cancel Button Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={emailModalCancelColor}
-                              onInput={(e) => setEmailModalCancelColor(e.currentTarget.value)}
+                              onChange={(e) => setEmailModalCancelColor(e.currentTarget.value)}
+                              onBlur={(e) => setEmailModalCancelColor(e.currentTarget.value)}
                               placeholder="#333333"
                             />
                           </BlockStack>
@@ -2809,7 +3508,8 @@ export default function Settings() {
                                 label="Email Modal Background Color"
                                 labelAccessibilityVisibility="exclusive"
                                 value={emailModalBgColor}
-                                onInput={(e) => setEmailModalBgColor(e.currentTarget.value)}
+                                onChange={(e) => setEmailModalBgColor(e.currentTarget.value)}
+                                onBlur={(e) => setEmailModalBgColor(e.currentTarget.value)}
                                 placeholder="#ffffff"
                               />
                             </BlockStack>
@@ -2821,7 +3521,8 @@ export default function Settings() {
                                 label="Email Modal Submit Button Color"
                                 labelAccessibilityVisibility="exclusive"
                                 value={emailModalSubmitBgColor}
-                                onInput={(e) => setEmailModalSubmitBgColor(e.currentTarget.value)}
+                                onChange={(e) => setEmailModalSubmitBgColor(e.currentTarget.value)}
+                                onBlur={(e) => setEmailModalSubmitBgColor(e.currentTarget.value)}
                                 placeholder="#000000"
                               />
                             </BlockStack>
@@ -2833,7 +3534,8 @@ export default function Settings() {
                                 label="Email Modal Cancel Button Color"
                                 labelAccessibilityVisibility="exclusive"
                                 value={emailModalCancelBgColor}
-                                onInput={(e) => setEmailModalCancelBgColor(e.currentTarget.value)}
+                                onChange={(e) => setEmailModalCancelBgColor(e.currentTarget.value)}
+                                onBlur={(e) => setEmailModalCancelBgColor(e.currentTarget.value)}
                                 placeholder="#cccccc"
                               />
                             </BlockStack>
@@ -2932,7 +3634,8 @@ export default function Settings() {
                               label="Discount Modal Heading Color"
                               labelAccessibilityVisibility="exclusive"
                               value={discountModalHeadingColor}
-                              onInput={(e) => setDiscountModalHeadingColor(e.currentTarget.value)}
+                              onChange={(e) => setDiscountModalHeadingColor(e.currentTarget.value)}
+                              onBlur={(e) => setDiscountModalHeadingColor(e.currentTarget.value)}
                               placeholder="#333333"
                             />
                           </BlockStack>
@@ -2983,7 +3686,8 @@ export default function Settings() {
                               label="Discount Modal Description Color"
                               labelAccessibilityVisibility="exclusive"
                               value={discountModalDescriptionColor}
-                              onInput={(e) => setDiscountModalDescriptionColor(e.currentTarget.value)}
+                              onChange={(e) => setDiscountModalDescriptionColor(e.currentTarget.value)}
+                              onBlur={(e) => setDiscountModalDescriptionColor(e.currentTarget.value)}
                               placeholder="#333333"
                             />
                           </BlockStack>
@@ -3034,7 +3738,8 @@ export default function Settings() {
                               label="Discount Modal Close Button Text Color"
                               labelAccessibilityVisibility="exclusive"
                               value={discountModalCloseColor}
-                              onInput={(e) => setDiscountModalCloseColor(e.currentTarget.value)}
+                              onChange={(e) => setDiscountModalCloseColor(e.currentTarget.value)}
+                              onBlur={(e) => setDiscountModalCloseColor(e.currentTarget.value)}
                               placeholder="#ffffff"
                             />
                           </BlockStack>
@@ -3053,7 +3758,7 @@ export default function Settings() {
                                 label="Discount Modal Background Color"
                                 labelAccessibilityVisibility="exclusive"
                                 value={discountModalBgColor}
-                                onInput={(e) => setDiscountModalBgColor(e.currentTarget.value)}
+                                onChange={(e) => setDiscountModalBgColor(e.currentTarget.value)}
                                 placeholder="#ffffff"
                               />
                             </BlockStack>
@@ -3065,7 +3770,7 @@ export default function Settings() {
                                 label="Discount Modal Close Button Color"
                                 labelAccessibilityVisibility="exclusive"
                                 value={discountModalCloseBgColor}
-                                onInput={(e) => setDiscountModalCloseBgColor(e.currentTarget.value)}
+                                onChange={(e) => setDiscountModalCloseBgColor(e.currentTarget.value)}
                                 placeholder="#000000"
                               />
                             </BlockStack>
@@ -3117,22 +3822,10 @@ export default function Settings() {
                         id="popup-page-any"
                       />
                       <RadioButton
-                        label="Display on a custom page"
+                        label="Display on specific pages"
                         checked={popupDisplayPage === 'custom'}
                         onChange={() => setPopupDisplayPage('custom')}
                         id="popup-page-custom"
-                      />
-                    </InlineStack>
-                    <InlineStack gap="400">
-                      <Checkbox
-                        label="Show on desktop"
-                        checked={showOnDesktop}
-                        onChange={setShowOnDesktop}
-                      />
-                      <Checkbox
-                        label="Show on mobile"
-                        checked={showOnMobile}
-                        onChange={setShowOnMobile}
                       />
                     </InlineStack>
                     {popupDisplayPage === 'custom' && (
@@ -3165,6 +3858,18 @@ export default function Settings() {
                         </Button>
                       </BlockStack>
                     )}
+                    <InlineStack gap="400">
+                      <Checkbox
+                        label="Show on desktop"
+                        checked={showOnDesktop}
+                        onChange={setShowOnDesktop}
+                      />
+                      <Checkbox
+                        label="Show on mobile"
+                        checked={showOnMobile}
+                        onChange={setShowOnMobile}
+                      />
+                    </InlineStack>
                   </BlockStack>
                 </Card>
                 <Card>
@@ -3174,7 +3879,7 @@ export default function Settings() {
                       checked={showStickyButton}
                       onChange={setShowStickyButton}
                     />
-                    <InlineGrid columns={2} gap="400">
+                    <InlineGrid columns={4} gap="0">
                       <TextField
                         label="Button text"
                         value={stickyButtonText}
@@ -3183,16 +3888,40 @@ export default function Settings() {
                       />
                       <BlockStack gap="100">
                         <div style={{ fontWeight: 400 }}>
+                          <Text variant="bodyMd" as="p">Text color</Text>
+                        </div>
+                        <s-color-field
+                          label="Text color"
+                          labelAccessibilityVisibility="exclusive"
+                          value={stickyButtonTextColor}
+                          onChange={(e) => setStickyButtonTextColor(e.currentTarget.value)}
+                          onBlur={(e) => setStickyButtonTextColor(e.currentTarget.value)}
+                          placeholder="#ffffff"
+                        />
+                      </BlockStack>
+                      <BlockStack gap="100">
+                        <div style={{ fontWeight: 400 }}>
                           <Text variant="bodyMd" as="p">Button color</Text>
                         </div>
                         <s-color-field
                           label="Button color"
                           labelAccessibilityVisibility="exclusive"
                           value={stickyButtonColor}
-                          onInput={(e) => setStickyButtonColor(e.currentTarget.value)}
+                          onChange={(e) => setStickyButtonColor(e.currentTarget.value)}
+                          onBlur={(e) => setStickyButtonColor(e.currentTarget.value)}
                           placeholder="#000000"
                         />
                       </BlockStack>
+                      <Select
+                        label="Button position"
+                        options={[
+                          { label: 'Right side', value: 'right' },
+                          { label: 'Bottom', value: 'bottom' },
+                          { label: 'Left side', value: 'left' }
+                        ]}
+                        value={stickyButtonPosition}
+                        onChange={setStickyButtonPosition}
+                      />
                     </InlineGrid>
                     <InlineStack gap="400">
                       <RadioButton
@@ -3202,12 +3931,42 @@ export default function Settings() {
                         id="sticky-button-page-any"
                       />
                       <RadioButton
-                        label="Display on a custom page"
+                        label="Display on specific pages"
                         checked={stickyButtonDisplayPage === 'custom'}
                         onChange={() => setStickyButtonDisplayPage('custom')}
                         id="sticky-button-page-custom"
                       />
                     </InlineStack>
+                    {stickyButtonDisplayPage === 'custom' && (
+                      <BlockStack gap="300">
+                        {stickyButtonCustomUrls.map((url, index) => (
+                          <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            <div style={{ flex: 1 }}>
+                              <TextField
+                                label={index === 0 ? "URL" : ""}
+                                value={url}
+                                onChange={(value) => handleUpdateStickyButtonCustomUrl(index, value)}
+                                autoComplete="off"
+                                placeholder="Enter custom URL"
+                              />
+                            </div>
+                            {stickyButtonCustomUrls.length > 1 && (
+                              <div style={{ marginTop: index === 0 ? '24px' : '0' }}>
+                                <Button
+                                  variant="plain"
+                                  onClick={() => handleRemoveStickyButtonCustomUrl(index)}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        <Button onClick={handleAddStickyButtonCustomUrl}>
+                          Add custom URL
+                        </Button>
+                      </BlockStack>
+                    )}
                     <InlineStack gap="400">
                       <Checkbox
                         label="Show on desktop"
@@ -3236,10 +3995,11 @@ export default function Settings() {
               Save Settings
             </Button>
           </div>
-          </div>  {/* Close Settings Container wrapper */}
+        </div>  {/* Close Settings Container wrapper */}
         </FormLayout>
       </Form>
     </Page>
+    </>
   );
 }
 

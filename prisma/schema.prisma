@@ -46,6 +46,12 @@ model GameSettings {
   shop                    String   @unique
   selectedGame            String   @default("bouncing-ball")
   enabled                 Boolean  @default(true)
+  appEmbedEnabled         Boolean  @default(false)
+  popupShowOnDesktop      Boolean  @default(true)
+  popupShowOnMobile       Boolean  @default(true)
+  popupDelay              String   @default("0")
+  popupDisplayPage        String   @default("any")
+  popupCustomUrls         Json?
   emailRequired           Boolean  @default(true)
   requireName             Boolean  @default(false)
   discountCodeOrderNumber Int      @default(345)
@@ -53,13 +59,60 @@ model GameSettings {
   showStickyButton        Boolean  @default(false)
   stickyButtonText        String   @default("Discount Game")
   stickyButtonColor       String   @default("#000000")
+  stickyButtonTextColor   String   @default("#ffffff")
+  stickyButtonPosition    String   @default("right")
   stickyButtonDisplayPage String   @default("any")
+  stickyButtonCustomUrls  Json?
   stickyButtonShowOnDesktop Boolean @default(true)
-  stickyButtonShowOnMobile Boolean @default(true)
-  logoUrl                   String?
-  bouncingBallSettings    Json?    // Settings for bouncing-ball game
-  horizontalLinesSettings Json?    // Settings for horizontal-lines game
-  reactionClickSettings   Json?    // Settings for reaction-click game
+  stickyButtonShowOnMobile Boolean  @default(true)
+  logoUrl                 String?
+  logoScale               Int      @default(100)
+  logoScaleMobile         Int      @default(100)
+  showPopupHeaderText     Boolean  @default(true)
+  bouncingBallSettings    Json?
+  horizontalLinesSettings Json?
+  reactionClickSettings   Json?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+}
+
+model DiscountClaim {
+  id          String   @id @default(cuid())
+  shop        String
+  email       String
+  discountCode String
+  percentage  Int
+  firstName   String?
+  lastName    String?
+  device      String?
+  gameType    String?
+  difficulty  String?
+  claimedAt   DateTime @default(now())
+  
+  @@unique([shop, email])
+  @@index([shop])
+  @@index([email])
+}
+
+model PopupView {
+  id        String   @id @default(cuid())
+  shop      String
+  sessionId String
+  device    String
+  viewedAt  DateTime @default(now())
+  
+  @@index([shop])
+  @@index([sessionId])
+}
+
+model GamePlay {
+  id        String   @id @default(cuid())
+  shop      String
+  sessionId String
+  device    String
+  gameType  String
+  playedAt  DateTime @default(now())
+  
+  @@index([shop])
+  @@index([sessionId])
 }

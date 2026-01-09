@@ -34,30 +34,40 @@
             <button id="restartBtn">Play Again</button>
             <button id="claimBestBtn">Claim Best Discount 0%</button>
         </div>
-        
-        <div class="email-modal" id="emailModal" style="display: none;">
-            <div class="email-modal-content">
-                <h3>Enter Your Email</h3>
-                <p>Please enter your email to claim your discount:</p>
-                <div id="nameFieldsContainer" style="display: none;">
-                    <input type="text" id="firstNameInput" placeholder="First Name" />
-                    <input type="text" id="lastNameInput" placeholder="Last Name" />
-                </div>
-                <input type="email" id="emailInput" placeholder="your@email.com" />
-                <div class="email-modal-buttons">
-                    <button id="emailSubmitBtn">Submit</button>
-                    <button id="emailCancelBtn">Cancel</button>
-                </div>
+    </div>
+    
+    <!-- Email Modal -->
+    <div id="emailModal" class="email-modal" style="display: none;">
+        <div class="email-modal-content">
+            <h3>Enter Your Email</h3>
+            <p>Please enter your email to claim your discount:</p>
+            <input type="email" id="emailInput" placeholder="Email" />
+            <div id="nameFieldsContainer" style="display: none;">
+                <input type="text" id="firstNameInput" placeholder="First Name" />
+                <input type="text" id="lastNameInput" placeholder="Last Name" />
+            </div>
+            <div class="email-modal-buttons">
+                <button id="emailSubmitBtn">Submit</button>
+                <button id="emailCancelBtn">Cancel</button>
             </div>
         </div>
-        
-        <div class="discount-code-modal" id="discountCodeModal" style="display: none;">
-            <div class="discount-code-modal-content">
-                <h3>Your Discount Code</h3>
+    </div>
+
+    <!-- Discount Code Modal -->
+    <div id="discountCodeModal" class="discount-code-modal" style="display: none;">
+        <div class="discount-code-modal-content">
+            <h3>Your Discount Code</h3>
+            <div class="discount-code-input-wrapper">
                 <input type="text" id="discountCodeText" readonly />
-                <p id="discountCodeDescription"></p>
-                <button id="discountCodeCloseBtn">Close</button>
+                <button id="discountCodeCopyBtn" class="copy-icon-btn" title="Copy code">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                </button>
             </div>
+            <p id="discountCodeDescription">Copy your code and use it at checkout</p>
+            <button id="discountCodeCloseBtn">Close</button>
         </div>
     </div>
     
