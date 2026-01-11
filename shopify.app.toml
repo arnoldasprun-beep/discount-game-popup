@@ -2,7 +2,7 @@
 
 client_id = "e29ac76f642703b2360d69d99a9dbba3"
 name = "trial"
-application_url = "https://trialapp.traffishow.com"
+application_url = "https://discount-game-popup-production.up.railway.app"
 embedded = true
 
 [build]
@@ -31,5 +31,5 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://trialapp.traffishow.com/api/auth"
+  "https://discount-game-popup-production.up.railway.app/api/auth"
 ]
