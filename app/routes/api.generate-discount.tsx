@@ -13,7 +13,7 @@ const corsHeaders = {
 const REQUEST_TIMEOUT = 30000;
 
 // Maximum retry attempts for discount code conflicts
-const MAX_RETRY_ATTEMPTS = 3;
+const MAX_RETRY_ATTEMPTS = 10;
 
 // Helper function to validate shop domain
 function isValidShopDomain(shop: string): boolean {
@@ -216,8 +216,6 @@ export const options = async () => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  console.log('=== DISCOUNT CLAIM REQUEST RECEIVED ===');
-  
   if (request.method !== "POST") {
     return Response.json(
       { error: "Method not allowed" }, 
@@ -228,7 +226,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   let body;
   try {
     body = await request.json();
-    console.log('Request body received:', { shop: body.shop, email: body.email, percentage: body.percentage });
   } catch (error) {
     console.error('Error parsing request body:', error);
     return Response.json(
@@ -238,7 +235,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   const { shop, email, percentage, firstName, lastName, device, gameType, difficulty } = body;
-  console.log('Extracted values:', { shop, email, percentage });
 
   // Input validation
   if (!shop || !email || percentage === undefined) {
@@ -338,11 +334,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // Check if email has already claimed a discount (only if email is provided and not placeholder)
-    console.log('About to check for duplicate email. Email value:', email, 'Is placeholder?', email === 'no-email@example.com');
-    
     if (email && email !== 'no-email@example.com') {
       const normalizedEmail = email.toLowerCase().trim();
-      console.log('Checking for duplicate with normalized email:', normalizedEmail, 'shop:', shop);
       
       // Try findUnique first (using compound key)
       let existingClaim = await prisma.discountClaim.findUnique({
@@ -354,74 +347,74 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
       
-      console.log('findUnique result:', existingClaim);
-      
       // Fallback: if findUnique doesn't work, try findFirst
       if (!existingClaim) {
-        console.log('findUnique returned null, trying findFirst...');
         existingClaim = await prisma.discountClaim.findFirst({
           where: {
             shop: shop,
             email: normalizedEmail,
           },
         });
-        console.log('findFirst result:', existingClaim);
       }
 
       if (existingClaim) {
-        console.log('Duplicate email detected:', normalizedEmail, 'Existing claim:', existingClaim);
         return Response.json(
           { error: "This email has already claimed a discount. Each email can only claim once." },
           { status: 400, headers: corsHeaders }
         );
       }
-      
-      console.log('No existing claim found for email:', normalizedEmail, 'shop:', shop);
-    } else {
-      console.log('Skipping duplicate check - email is empty or placeholder:', email);
     }
 
     // Use database transaction to safely get and increment order number
-    let orderNumber: number;
+    let baseOrderNumber: number;
     let discountCode: string = '';
     let retryCount = 0;
     let success = false;
+    let discountCodePrefix = "wincode";
 
     while (retryCount < MAX_RETRY_ATTEMPTS && !success) {
-      // Get or create game settings within transaction
-      const settings = await prisma.$transaction(async (tx) => {
-        let currentSettings = await tx.gameSettings.findUnique({
-          where: { shop },
-        });
+      // Get or create game settings within transaction (only on first attempt)
+      if (retryCount === 0) {
+        const settings = await prisma.$transaction(async (tx) => {
+          let currentSettings = await tx.gameSettings.findUnique({
+            where: { shop },
+          });
 
-        if (!currentSettings) {
-          currentSettings = await tx.gameSettings.create({
+          if (!currentSettings) {
+            currentSettings = await tx.gameSettings.create({
+              data: {
+                shop,
+                discountCodeOrderNumber: 345,
+                discountCodePrefix: "wincode",
+              },
+            });
+          }
+
+          // Get current order number and discount code prefix
+          const currentOrderNumber = currentSettings.discountCodeOrderNumber ?? 345;
+          const prefix = currentSettings.discountCodePrefix ?? "wincode";
+          
+          // Increment order number atomically
+          const updatedSettings = await tx.gameSettings.update({
+            where: { shop },
             data: {
-              shop,
-              discountCodeOrderNumber: 345,
-              discountCodePrefix: "wincode",
+              discountCodeOrderNumber: currentOrderNumber + 1,
             },
           });
-        }
 
-        // Get current order number and discount code prefix
-        const currentOrderNumber = currentSettings.discountCodeOrderNumber ?? 345;
-        const discountCodePrefix = currentSettings.discountCodePrefix ?? "wincode";
-        
-        // Increment order number atomically
-        const updatedSettings = await tx.gameSettings.update({
-          where: { shop },
-          data: {
-            discountCodeOrderNumber: currentOrderNumber + 1,
-          },
+          return { currentOrderNumber, discountCodePrefix: prefix, updatedSettings };
         });
 
-        return { currentOrderNumber, discountCodePrefix, updatedSettings };
-      });
+        baseOrderNumber = settings.currentOrderNumber;
+        discountCodePrefix = settings.discountCodePrefix ?? "wincode";
+      }
 
-      orderNumber = settings.currentOrderNumber;
-      const discountCodePrefix = settings.discountCodePrefix ?? "wincode";
-      discountCode = `${discountCodePrefix}${percentageNumber}${orderNumber}`;
+      // Add random digit (0-9) on retries to handle duplicate codes from reinstalls
+      const orderNumberForCode = retryCount > 0 
+        ? parseInt(`${baseOrderNumber}${Math.floor(Math.random() * 10)}`)
+        : baseOrderNumber;
+      
+      discountCode = `${discountCodePrefix}${percentageNumber}${orderNumberForCode}`;
 
       // Try to create discount code
       const result = await createDiscountCode(
@@ -429,21 +422,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         session,
         discountCode,
         percentageNumber,
-        orderNumber
+        baseOrderNumber
       );
 
       if (result.success) {
         success = true;
-        console.log('Discount code created successfully:', discountCode);
         break;
       } else if (result.isConflict && retryCount < MAX_RETRY_ATTEMPTS - 1) {
-        // Code conflict - retry with next order number
+        // Code conflict - add random digit and retry (handles old codes from reinstalls)
         retryCount++;
-        console.log(`Discount code conflict detected, retrying (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS})...`);
-        // Order number already incremented in transaction, so next iteration will use the new number
         continue;
+      } else if (result.isConflict && retryCount >= MAX_RETRY_ATTEMPTS - 1) {
+        // Max retries reached due to code conflicts
+        console.error(`Failed to create unique discount code after ${MAX_RETRY_ATTEMPTS} attempts. Last error: ${result.error}`);
+        return Response.json(
+          { error: 'Unable to generate a unique discount code. Please try again in a moment.' },
+          { status: 400, headers: corsHeaders }
+        );
       } else {
-        // Other error or max retries reached
+        // Other error
         return Response.json(
           { error: result.error || 'Failed to create discount code. Please try again.' },
           { status: 400, headers: corsHeaders }

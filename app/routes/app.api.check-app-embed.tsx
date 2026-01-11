@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { getDefaultGameSettingsData } from "../utils/default-game-settings";
 
 const APP_EXTENSION_UID = "be1f0407-3e6c-c935-6a31-d8540964d8b7a1dbd5cf";
 
@@ -179,10 +180,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       where: { shop: session.shop },
       update: { appEmbedEnabled: true },
       create: { 
-        shop: session.shop, 
+        ...getDefaultGameSettingsData(session.shop),
         appEmbedEnabled: true,
-        selectedGame: "bouncing-ball",
-        enabled: true,
       },
     });
     
@@ -199,10 +198,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       where: { shop: session.shop },
       update: { appEmbedEnabled: false },
       create: { 
-        shop: session.shop, 
+        ...getDefaultGameSettingsData(session.shop),
         appEmbedEnabled: false,
-        selectedGame: "bouncing-ball",
-        enabled: true,
       },
     });
     

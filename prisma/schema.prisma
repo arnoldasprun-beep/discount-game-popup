@@ -9,8 +9,8 @@ generator client {
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -44,30 +44,33 @@ model Shop {
 model GameSettings {
   id                      String   @id @default(cuid())
   shop                    String   @unique
-  selectedGame            String   @default("bouncing-ball")
+  selectedGame            String   @default("horizontal-lines")
   enabled                 Boolean  @default(true)
   appEmbedEnabled         Boolean  @default(false)
   popupShowOnDesktop      Boolean  @default(true)
   popupShowOnMobile       Boolean  @default(true)
-  popupDelay              String   @default("0")
+  popupDelay              String   @default("3")
   popupDisplayPage        String   @default("any")
   popupCustomUrls         Json?
   emailRequired           Boolean  @default(true)
   requireName             Boolean  @default(false)
   discountCodeOrderNumber Int      @default(345)
   discountCodePrefix      String   @default("wincode")
-  showStickyButton        Boolean  @default(false)
+  showStickyButton        Boolean  @default(true)
   stickyButtonText        String   @default("Discount Game")
   stickyButtonColor       String   @default("#000000")
   stickyButtonTextColor   String   @default("#ffffff")
-  stickyButtonPosition    String   @default("right")
+  stickyButtonPosition    String   @default("bottom")
   stickyButtonDisplayPage String   @default("any")
   stickyButtonCustomUrls  Json?
   stickyButtonShowOnDesktop Boolean @default(true)
-  stickyButtonShowOnMobile Boolean  @default(true)
+  stickyButtonShowOnMobile Boolean  @default(false)
   logoUrl                 String?
+  logoUrlMobile           String?
   logoScale               Int      @default(100)
   logoScaleMobile         Int      @default(100)
+  logoHeightDesktop       String   @default("small")
+  logoHeightMobile        String   @default("small")
   showPopupHeaderText     Boolean  @default(true)
   bouncingBallSettings    Json?
   horizontalLinesSettings Json?

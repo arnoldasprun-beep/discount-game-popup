@@ -27,7 +27,8 @@
     border-radius: 0px;
     padding: 12px 24px;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 500;
+    font-family: 'Poppins', sans-serif;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     white-space: nowrap;
@@ -101,6 +102,8 @@
             margin: 0;
             color: #333;
             font-size: 1.8em;
+            font-weight: 600;
+            font-family: 'Poppins', sans-serif;
           ">Discount Game</h2>
         </div>
 
@@ -205,15 +208,6 @@
         });
       }
       
-      // TEMPORARY: Disabled localStorage check for testing
-      // Check if popup should show (not shown if already dismissed today)
-      // const popupDismissed = localStorage.getItem('game-popup-dismissed-' + shop);
-      // const today = new Date().toDateString();
-      // 
-      // if (popupDismissed === today) {
-      //   return; // Don't show if dismissed today
-      // }
-
       // Fetch game settings from API
       fetch(appUrl + '/api/settings?shop=' + shop)
         .then(response => response.json())
@@ -222,7 +216,7 @@
             return; // Don't show if disabled
           }
 
-          const gameType = data.selectedGame || 'bouncing-ball';
+          const gameType = data.selectedGame || 'horizontal-lines';
           const requireEmailToClaim = data.requireEmailToClaim !== undefined ? data.requireEmailToClaim : false;
           const requireName = data.requireName !== undefined ? data.requireName : false;
           const popupDelay = data.popupDelay || '0';
@@ -252,9 +246,30 @@
           const buttonBgColor = data.buttonBgColor || '#000000';
           const claimBestButtonBgColor = data.claimBestButtonBgColor || '#000000';
           const logoUrl = data.logoUrl || null;
+          const logoUrlMobile = data.logoUrlMobile || null;
           const logoScale = data.logoScale !== undefined ? data.logoScale : 100;
           const logoScaleMobile = data.logoScaleMobile !== undefined ? data.logoScaleMobile : 100;
-          console.log('Logo URL from API:', logoUrl); // Debug logging
+          const logoHeightDesktop = data.logoHeightDesktop || 'small';
+          const logoHeightMobile = data.logoHeightMobile || 'small';
+          
+          // Helper function to get height in pixels
+          const getHeaderHeight = (size, isMobile) => {
+            if (isMobile) {
+              switch(size) {
+                case 'small': return 60;
+                case 'medium': return 70;
+                case 'large': return 80;
+                default: return 60;
+              }
+            } else {
+              switch(size) {
+                case 'small': return 70;
+                case 'medium': return 90;
+                case 'large': return 110;
+                default: return 70;
+              }
+            }
+          };
           
           // Sticky Button Settings
           const showStickyButton = data.showStickyButton !== undefined ? data.showStickyButton : false;
@@ -299,6 +314,8 @@
           // Check if sticky button should show on current page
           const shouldShowStickyButtonOnPage = shouldShowOnCurrentPage(stickyButtonDisplayPage, stickyButtonCustomUrls);
           
+          const today = new Date().toDateString();
+          
           // Store timeout ID and initialization flag (before sticky button setup)
           let popupTimeoutId = null;
           let popupInitialized = false;
@@ -325,20 +342,40 @@
 
             if (!container) return;
             
-            // Show logo if logoUrl is provided
-            if (logoUrl && logoUrl.trim() !== '' && popupLogo && popupLogoImg) {
-              console.log('Setting logo:', logoUrl); // Debug logging
-              
-              // Function to update logo size based on mobile/desktop state
-              const updateLogoSize = () => {
+            // Function to get the correct logo URL based on device
+            const getCurrentLogoUrl = () => {
+              const isMobileNow = window.innerWidth <= 768;
+              // Use mobile logo if available, otherwise fall back to desktop logo
+              if (isMobileNow && logoUrlMobile && logoUrlMobile.trim() !== '') {
+                return logoUrlMobile;
+              } else if (logoUrl && logoUrl.trim() !== '') {
+                return logoUrl;
+              }
+              return null;
+            };
+            
+            // Show logo if a logo URL is available
+            const currentLogoUrl = getCurrentLogoUrl();
+            if (currentLogoUrl && popupLogo && popupLogoImg) {
+              // Function to update logo URL and size based on mobile/desktop state
+              const updateLogo = () => {
                 const isMobileNow = window.innerWidth <= 768;
+                const newLogoUrl = getCurrentLogoUrl();
                 const currentLogoScale = isMobileNow ? logoScaleMobile : logoScale;
-                const baseLogoHeight = isMobileNow ? 60 : 80;
+                const currentHeightSetting = isMobileNow ? logoHeightMobile : logoHeightDesktop;
+                const containerHeight = getHeaderHeight(currentHeightSetting, isMobileNow);
+                // Use fixed base size for image calculation (small size)
+                const fixedBaseHeight = isMobileNow ? 60 : 70; // Always use 'small' as base
                 const scaleFactor = 1 + currentLogoScale / 25;
-                const scaledHeight = baseLogoHeight * scaleFactor;
+                const scaledHeight = fixedBaseHeight * scaleFactor;
+                
+                // Update logo URL if it changed
+                if (newLogoUrl && popupLogoImg.src !== newLogoUrl) {
+                  popupLogoImg.src = newLogoUrl;
+                }
                 
                 if (popupLogo) {
-                  popupLogo.style.height = baseLogoHeight + 'px';
+                  popupLogo.style.height = containerHeight + 'px';
                   popupLogo.style.overflow = 'hidden';
                 }
                 
@@ -353,34 +390,32 @@
               
               // Set initial logo styles
               popupLogo.style.display = 'flex';
-              popupLogoImg.src = logoUrl;
+              popupLogoImg.src = currentLogoUrl;
               popupLogoImg.style.display = 'block';
               popupLogoImg.style.objectFit = 'contain';
               
               // Apply initial sizing
-              updateLogoSize();
+              updateLogo();
               
               // Handle image load success
               popupLogoImg.onload = function() {
-                console.log('Logo image loaded successfully');
-                updateLogoSize(); // Reapply sizing after image loads
+                updateLogo(); // Reapply sizing after image loads
               };
               
               // Handle image load errors
               popupLogoImg.onerror = function() {
-                console.error('Failed to load logo image:', logoUrl);
+                console.error('Failed to load logo image:', popupLogoImg.src);
                 if (popupLogo) {
                   popupLogo.style.display = 'none';
                 }
               };
               
-              // Add resize handler to update logo scaling dynamically
-              window.addEventListener('resize', updateLogoSize);
+              // Add resize handler to update logo URL and scaling dynamically
+              window.addEventListener('resize', updateLogo);
               window.addEventListener('orientationchange', () => {
-                setTimeout(updateLogoSize, 200);
+                setTimeout(updateLogo, 200);
               });
             } else {
-              console.log('Logo not shown - logoUrl:', logoUrl, 'popupLogo:', popupLogo, 'popupLogoImg:', popupLogoImg);
               if (popupLogo) {
                 popupLogo.style.display = 'none';
               }
@@ -547,9 +582,8 @@
             if (closeBtn) {
               closeBtn.addEventListener('click', () => {
                 container.style.display = 'none';
-                // TEMPORARY: Disabled for testing
-                // const today = new Date().toDateString();
-                // localStorage.setItem('game-popup-dismissed-' + shop, today);
+                const today = new Date().toDateString();
+                localStorage.setItem('game-popup-dismissed-' + shop, today);
               });
             }
 
@@ -560,7 +594,6 @@
                 const email = emailInput.value;
                 
                 // Here you could send email to your backend
-                console.log('Email captured:', email);
                 
                 // Hide email form, show game
                 if (emailForm) emailForm.style.display = 'none';
@@ -573,15 +606,18 @@
               overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) {
                   container.style.display = 'none';
-                  // TEMPORARY: Disabled for testing
-                  // localStorage.setItem('game-popup-dismissed-' + shop, today);
+                  const today = new Date().toDateString();
+                  localStorage.setItem('game-popup-dismissed-' + shop, today);
                 }
               });
             }
           }
           
-          // Show sticky button if enabled
+          // Show sticky button if enabled (check if it was dismissed today)
           if (showStickyButton) {
+            const stickyButtonDismissed = localStorage.getItem('game-sticky-button-dismissed-' + shop);
+            const wasStickyButtonDismissedToday = stickyButtonDismissed === today;
+            
             const stickyButtonContainer = document.getElementById('sticky-button-container');
             const stickyButton = document.getElementById('sticky-button');
             const stickyButtonClose = document.getElementById('sticky-button-close');
@@ -590,7 +626,7 @@
               // Check if should show on current device and page
               const isMobile = window.innerWidth <= 768;
               const shouldShowDevice = (isMobile && stickyButtonShowOnMobile) || (!isMobile && stickyButtonShowOnDesktop);
-              const shouldShow = shouldShowDevice && shouldShowStickyButtonOnPage;
+              const shouldShow = shouldShowDevice && shouldShowStickyButtonOnPage && !wasStickyButtonDismissedToday;
               
               if (shouldShow) {
                 stickyButtonContainer.style.display = 'block';
@@ -657,9 +693,17 @@
                   e.stopPropagation();
                   stickyButtonContainer.style.display = 'none';
                   stickyButtonClose.style.display = 'none';
+                  const today = new Date().toDateString();
+                  localStorage.setItem('game-sticky-button-dismissed-' + shop, today);
                 });
               }
             }
+          }
+          
+          // Check if popup was dismissed today - if so, skip auto popup setup (early return)
+          const popupDismissed = localStorage.getItem('game-popup-dismissed-' + shop);
+          if (popupDismissed === today) {
+            return; // Don't show auto popup if dismissed today
           }
           
           // Show popup after a delay (only if page check passes)

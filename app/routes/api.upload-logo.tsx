@@ -54,11 +54,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // Validate file size (max 1MB)
+    const maxSize = 1 * 1024 * 1024; // 1MB
     if (file.size > maxSize) {
       return Response.json(
-        { error: "File size must be less than 5MB" },
+        { error: "File size must be less than 1MB" },
         { status: 400, headers: corsHeaders }
       );
     }

@@ -17,132 +17,151 @@ import {
   Box,
   Scrollable,
   Icon,
+  Pagination,
+  Spinner,
+  Banner,
+  EmptyState,
 } from "@shopify/polaris";
 import { CalendarIcon, ArrowRightIcon } from "@shopify/polaris-icons";
 import prisma from "../db.server";
-import { useLoaderData, useSearchParams, useFetcher } from "react-router";
+import { useLoaderData, useSearchParams, useFetcher, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const authResult = await authenticate.admin(request);
-  const { session } = authResult;
-  const shop = session.shop;
+  try {
+    const authResult = await authenticate.admin(request);
+    const { session } = authResult;
+    const shop = session.shop;
 
-  // Get date range from URL params
-  const url = new URL(request.url);
-  const sinceParam = url.searchParams.get('since');
-  const untilParam = url.searchParams.get('until');
-  
-  // Build date filter
-  const dateFilter: any = {};
-  if (sinceParam || untilParam) {
-    dateFilter.claimedAt = {};
-    if (sinceParam) {
-      const since = new Date(sinceParam);
-      since.setHours(0, 0, 0, 0);
-      dateFilter.claimedAt.gte = since;
+    // Get date range from URL params
+    const url = new URL(request.url);
+    const sinceParam = url.searchParams.get('since');
+    const untilParam = url.searchParams.get('until');
+    
+    // Helper function to validate and parse dates
+    const parseDate = (dateString: string | null, endOfDay: boolean = false): Date | null => {
+      if (!dateString) return null;
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        console.warn(`Invalid date string: ${dateString}`);
+        return null;
+      }
+      if (endOfDay) {
+        date.setHours(23, 59, 59, 999);
+      } else {
+        date.setHours(0, 0, 0, 0);
+      }
+      return date;
+    };
+    
+    // Build date filter with validation
+    const dateFilter: { claimedAt?: { gte?: Date; lte?: Date } } = {};
+    if (sinceParam || untilParam) {
+      dateFilter.claimedAt = {};
+      const since = parseDate(sinceParam, false);
+      if (since) {
+        dateFilter.claimedAt.gte = since;
+      }
+      const until = parseDate(untilParam, true);
+      if (until) {
+        dateFilter.claimedAt.lte = until;
+      }
     }
-    if (untilParam) {
-      const until = new Date(untilParam);
-      until.setHours(23, 59, 59, 999);
-      dateFilter.claimedAt.lte = until;
-    }
-  }
 
-  const popupViewDateFilter: any = {};
-  if (sinceParam || untilParam) {
-    popupViewDateFilter.viewedAt = {};
-    if (sinceParam) {
-      const since = new Date(sinceParam);
-      since.setHours(0, 0, 0, 0);
-      popupViewDateFilter.viewedAt.gte = since;
+    const popupViewDateFilter: { viewedAt?: { gte?: Date; lte?: Date } } = {};
+    if (sinceParam || untilParam) {
+      popupViewDateFilter.viewedAt = {};
+      const since = parseDate(sinceParam, false);
+      if (since) {
+        popupViewDateFilter.viewedAt.gte = since;
+      }
+      const until = parseDate(untilParam, true);
+      if (until) {
+        popupViewDateFilter.viewedAt.lte = until;
+      }
     }
-    if (untilParam) {
-      const until = new Date(untilParam);
-      until.setHours(23, 59, 59, 999);
-      popupViewDateFilter.viewedAt.lte = until;
-    }
-  }
 
-  const gamePlayDateFilter: any = {};
-  if (sinceParam || untilParam) {
-    gamePlayDateFilter.playedAt = {};
-    if (sinceParam) {
-      const since = new Date(sinceParam);
-      since.setHours(0, 0, 0, 0);
-      gamePlayDateFilter.playedAt.gte = since;
+    const gamePlayDateFilter: { playedAt?: { gte?: Date; lte?: Date } } = {};
+    if (sinceParam || untilParam) {
+      gamePlayDateFilter.playedAt = {};
+      const since = parseDate(sinceParam, false);
+      if (since) {
+        gamePlayDateFilter.playedAt.gte = since;
+      }
+      const until = parseDate(untilParam, true);
+      if (until) {
+        gamePlayDateFilter.playedAt.lte = until;
+      }
     }
-    if (untilParam) {
-      const until = new Date(untilParam);
-      until.setHours(23, 59, 59, 999);
-      gamePlayDateFilter.playedAt.lte = until;
-    }
-  }
 
-  // Fetch all data in parallel with date filtering
-  const [claims, popupViews, gamePlays] = await Promise.all([
-    prisma.discountClaim.findMany({
-      where: { 
-        shop,
-        ...dateFilter,
+    // Fetch all data in parallel with date filtering
+    const [claims, popupViews, gamePlays] = await Promise.all([
+      prisma.discountClaim.findMany({
+        where: { 
+          shop,
+          ...dateFilter,
+        },
+        orderBy: { claimedAt: 'desc' },
+      }),
+      prisma.popupView.findMany({
+        where: { 
+          shop,
+          ...popupViewDateFilter,
+        },
+      }),
+      prisma.gamePlay.findMany({
+        where: { 
+          shop,
+          ...gamePlayDateFilter,
+        },
+      }),
+    ]);
+
+    // Calculate metrics
+    const popupViewsCount = popupViews.length;
+    const gamesPlayedCount = gamePlays.length;
+    const subscribers = claims.length;
+    
+    const averageDiscountWin = claims.length > 0
+      ? claims.reduce((sum, claim) => sum + claim.percentage, 0) / claims.length
+      : 0;
+
+    const conversionRate = popupViewsCount > 0
+      ? (subscribers / popupViewsCount) * 100
+      : 0;
+
+    // Map game type to display name
+    const gameTypeMap: Record<string, string> = {
+      "bouncing-ball": "Spike Dodge",
+      "horizontal-lines": "Pass the Gaps",
+      "reaction-click": "Reaction Click",
+    };
+
+    return {
+      stats: {
+        popupViews: popupViewsCount,
+        gamesPlayed: gamesPlayedCount,
+        averageDiscountWin: Math.round(averageDiscountWin * 10) / 10,
+        subscribers,
+        conversionRate: Math.round(conversionRate * 10) / 10,
       },
-      orderBy: { claimedAt: 'desc' },
-    }),
-    prisma.popupView.findMany({
-      where: { 
-        shop,
-        ...popupViewDateFilter,
-      },
-    }),
-    prisma.gamePlay.findMany({
-      where: { 
-        shop,
-        ...gamePlayDateFilter,
-      },
-    }),
-  ]);
-
-  // Calculate metrics
-  const popupViewsCount = popupViews.length;
-  const gamesPlayedCount = gamePlays.length;
-  const subscribers = claims.length;
-  
-  const averageDiscountWin = claims.length > 0
-    ? claims.reduce((sum, claim) => sum + claim.percentage, 0) / claims.length
-    : 0;
-
-  const conversionRate = popupViewsCount > 0
-    ? (subscribers / popupViewsCount) * 100
-    : 0;
-
-  // Map game type to display name
-  const gameTypeMap: Record<string, string> = {
-    "bouncing-ball": "Spike Dodge",
-    "horizontal-lines": "Pass the Gaps",
-    "reaction-click": "Reaction Click",
-  };
-
-  return {
-    stats: {
-      popupViews: popupViewsCount,
-      gamesPlayed: gamesPlayedCount,
-      averageDiscountWin: Math.round(averageDiscountWin * 10) / 10,
-      subscribers,
-      conversionRate: Math.round(conversionRate * 10) / 10,
-    },
-    claims: claims.map(claim => ({
-      id: claim.id,
-      email: claim.email || '-',
-      name: claim.firstName && claim.lastName 
-        ? `${claim.firstName} ${claim.lastName}` 
-        : claim.firstName || claim.lastName || '-',
-      discountWon: `${claim.percentage}%`,
-      gameType: claim.gameType ? (gameTypeMap[claim.gameType] || claim.gameType) : '-',
-      discountCode: claim.discountCode,
-      device: claim.device || '-',
-      difficulty: claim.difficulty || '-',
-    })),
-  };
+      claims: claims.map(claim => ({
+        id: claim.id,
+        email: claim.email || '-',
+        name: claim.firstName && claim.lastName 
+          ? `${claim.firstName} ${claim.lastName}` 
+          : claim.firstName || claim.lastName || '-',
+        discountWon: `${claim.percentage}%`,
+        gameType: claim.gameType ? (gameTypeMap[claim.gameType] || claim.gameType) : '-',
+        discountCode: claim.discountCode,
+        device: claim.device || '-',
+        difficulty: claim.difficulty || '-',
+      })),
+    };
+  } catch (error) {
+    console.error("Error loading analytics:", error);
+    throw new Response("Failed to load analytics data", { status: 500 });
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -190,6 +209,16 @@ export default function AdditionalPage() {
   const { stats, claims } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   const fetcher = useFetcher();
+  const navigate = useNavigate();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [dismissError, setDismissError] = useState(false);
+  const pageSize = 50;
+  const totalPages = Math.ceil(claims.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedClaims = claims.slice(startIndex, endIndex);
   
   // Date range state
   const today = new Date(new Date().setHours(0, 0, 0, 0));
@@ -221,7 +250,7 @@ export default function AdditionalPage() {
         since: new Date(
           new Date(new Date().setDate(today.getDate() - 7)).setHours(0, 0, 0, 0)
         ),
-        until: yesterday,
+        until: today,
       },
     },
     {
@@ -231,7 +260,7 @@ export default function AdditionalPage() {
         since: new Date(
           new Date(new Date().setDate(today.getDate() - 30)).setHours(0, 0, 0, 0)
         ),
-        until: yesterday,
+        until: today,
       },
     },
     {
@@ -241,7 +270,7 @@ export default function AdditionalPage() {
         since: new Date(
           new Date(new Date().setDate(today.getDate() - 90)).setHours(0, 0, 0, 0)
         ),
-        until: yesterday,
+        until: today,
       },
     },
     {
@@ -251,7 +280,7 @@ export default function AdditionalPage() {
         since: new Date(
           new Date(new Date().setDate(today.getDate() - 365)).setHours(0, 0, 0, 0)
         ),
-        until: yesterday,
+        until: today,
       },
     },
   ];
@@ -386,6 +415,21 @@ export default function AdditionalPage() {
     setPopoverActive(false);
   }
 
+  // Set initial URL params if they don't exist (apply default date range)
+  useEffect(() => {
+    const sinceParam = searchParams.get('since');
+    const untilParam = searchParams.get('until');
+    
+    if (!sinceParam || !untilParam) {
+      // No URL params, set default "Last 7 days"
+      const params = new URLSearchParams();
+      params.set('since', formatDate(activeDateRange.period.since));
+      params.set('until', formatDate(activeDateRange.period.until));
+      setSearchParams(params, { replace: true }); // Use replace to avoid adding to history
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
   // Update input values when date range changes
   useEffect(() => {
     if (activeDateRange) {
@@ -439,17 +483,27 @@ export default function AdditionalPage() {
   // Refresh page after successful deletion
   useEffect(() => {
     if (fetcher.data?.success) {
-      window.location.reload();
+      // Use navigate instead of window.location.reload() to avoid authentication redirects
+      navigate(".", { replace: true });
     }
-  }, [fetcher.data]);
+    // Reset error dismiss state when new error occurs
+    if (fetcher.data?.error) {
+      setDismissError(false);
+    }
+  }, [fetcher.data, navigate]);
 
-  const rowMarkup = claims.map(
+  // Reset to page 1 when claims change (e.g., after date filter)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [claims.length]);
+
+  const rowMarkup = paginatedClaims.map(
     ({ id, email, name, discountWon, gameType, discountCode, device, difficulty }, index) => (
       <IndexTable.Row
         id={id}
         key={id}
         selected={selectedResources.includes(id)}
-        position={index}
+        position={startIndex + index}
       >
         <IndexTable.Cell>
           <Text variant="bodyMd" as="span">
@@ -470,9 +524,29 @@ export default function AdditionalPage() {
     ),
   );
 
+  // Loading and error states
+  const isDeleting = fetcher.state === "submitting";
+  const deleteError = fetcher.data?.error;
+
   return (
     <Page title="Analytics" fullWidth>
       <BlockStack gap="500">
+        {/* Error Banner */}
+        {deleteError && !dismissError && (
+          <Banner tone="critical" onDismiss={() => setDismissError(true)}>
+            <Text as="p">{deleteError}</Text>
+          </Banner>
+        )}
+        
+        {/* Loading Overlay */}
+        {isDeleting && (
+          <Banner tone="info">
+            <InlineStack gap="200" align="center">
+              <Spinner size="small" />
+              <Text as="p">Deleting subscribers...</Text>
+            </InlineStack>
+          </Banner>
+        )}
         {/* Date Range Picker */}
         <InlineStack align="start">
           <Popover
@@ -634,37 +708,50 @@ export default function AdditionalPage() {
           </Card>
         </InlineGrid>
 
-        <Card padding="0">
-          <IndexTable
-            resourceName={resourceName}
-            itemCount={claims.length}
-            selectedItemsCount={
-              allResourcesSelected ? "All" : selectedResources.length
-            }
-            onSelectionChange={handleSelectionChange}
-            bulkActions={
-              selectedResources.length > 0
-                ? [
-                    {
-                      content: "Delete subscribers",
-                      onAction: handleDelete,
-                    },
-                  ]
-                : undefined
-            }
-            headings={[
-              { title: "Email" },
-              { title: "Name" },
-              { title: "Discount Won", alignment: "end" },
-              { title: "Game" },
-              { title: "Difficulty" },
-              { title: "Device" },
-              { title: "Discount Code" },
-            ]}
-          >
-            {rowMarkup}
-          </IndexTable>
-        </Card>
+        <div style={{ marginBottom: '25px' }}>
+          <Card padding="0">
+            <IndexTable
+              resourceName={resourceName}
+              itemCount={claims.length}
+              selectedItemsCount={
+                allResourcesSelected ? "All" : selectedResources.length
+              }
+              onSelectionChange={handleSelectionChange}
+              bulkActions={
+                selectedResources.length > 0
+                  ? [
+                      {
+                        content: "Delete subscribers",
+                        onAction: handleDelete,
+                      },
+                    ]
+                  : undefined
+              }
+              headings={[
+                { title: "Email" },
+                { title: "Name" },
+                { title: "Discount Won", alignment: "end" },
+                { title: "Game" },
+                { title: "Difficulty" },
+                { title: "Device" },
+                { title: "Discount Code" },
+              ]}
+            >
+              {rowMarkup}
+            </IndexTable>
+            {totalPages > 1 && (
+              <div style={{ padding: '16px', display: 'flex', justifyContent: 'center' }}>
+                <Pagination
+                  label={`Page ${currentPage} of ${totalPages}`}
+                  hasPrevious={currentPage > 1}
+                  onPrevious={() => setCurrentPage(currentPage - 1)}
+                  hasNext={currentPage < totalPages}
+                  onNext={() => setCurrentPage(currentPage + 1)}
+                />
+              </div>
+            )}
+          </Card>
+        </div>
       </BlockStack>
     </Page>
   );

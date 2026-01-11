@@ -139,7 +139,7 @@ class BouncingBallGame {
             radius: 15, // Will be updated in setupCanvas() based on scaleFactor
             velocityY: 0,
             gravity: 0.3, // Increased from 0.5 for faster movement
-            bouncePower: -13, // Increased from -12 for faster bounce
+            bouncePower: this.isMobile ? -13 : -10, // -13 for mobile, -10 for desktop
             color: ballColor
         };
         
@@ -390,6 +390,8 @@ class BouncingBallGame {
     
     updateIsMobile() {
         this.isMobile = window.innerWidth <= 768;
+        // Update bouncePower based on device
+        this.ball.bouncePower = this.isMobile ? -13 : -10;
         // Update bottom line height with fluid scaling
         const scaleFactor = this.getScaleFactor();
         this.bottomLineHeight = 10 + (scaleFactor * 10); // 10px to 20px

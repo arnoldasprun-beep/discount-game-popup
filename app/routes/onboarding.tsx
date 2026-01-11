@@ -8,6 +8,7 @@ import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import * as Polaris from "@shopify/polaris";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import prisma from "../db.server";
+import { getDefaultGameSettingsData } from "../utils/default-game-settings";
 
 const { AppProvider: PolarisAppProvider } = Polaris;
 
@@ -20,13 +21,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   if (!settings) {
+    // Create complete settings with all defaults
     settings = await prisma.gameSettings.create({
-      data: { 
-        shop: session.shop,
-        selectedGame: "bouncing-ball",
-        enabled: true,
-        appEmbedEnabled: false,
-      },
+      data: getDefaultGameSettingsData(session.shop),
     });
   }
 

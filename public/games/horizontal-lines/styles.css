@@ -93,17 +93,6 @@ body {
     image-rendering: crisp-edges;
 }
 
-.instructions {
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: white;
-    font-size: 1em;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-    z-index: 10;
-}
-
 .game-over {
     position: absolute;
     top: 50%;

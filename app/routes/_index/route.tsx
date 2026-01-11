@@ -24,9 +24,9 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>Discount Game - Interactive Discount Games for Your Store</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Engage customers with fun interactive games and reward them with discount codes. Increase conversions and email capture with customizable game popups.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -42,16 +42,16 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Multiple Game Options</strong>. Choose from interactive games like Spike Dodge, Bouncing Ball, and Reaction Click to engage your customers.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Automatic Discount Codes</strong>. Generate unique discount codes based on game performance, automatically delivered to customers via email.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Full Customization</strong>. Customize game colors, text, popup timing, display settings, and more to match your brand.
+          </li>
+          <li>
+            <strong>Analytics Dashboard</strong>. Track game plays, popup views, conversions, and discount claims to measure your success.
           </li>
         </ul>
       </div>

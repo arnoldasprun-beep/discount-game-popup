@@ -4,6 +4,7 @@ import { useFetcher, useLoaderData, redirect } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { checkAppEmbedViaThemeSettings } from "./app.api.check-app-embed";
+import { defaultGameSettings, getDefaultGameSettingsData } from "../utils/default-game-settings";
 import {
   Page,
   Card,
@@ -39,7 +40,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { admin, session } = authResult;
     
     if (!session || !session.shop) {
-      console.log('ERROR: No session or shop in authResult');
+      console.error('ERROR: No session or shop in authResult');
       throw new Response("Unauthorized - no session", { status: 401 });
     }
 
@@ -54,10 +55,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shop },
         update: { appEmbedEnabled: true },
         create: { 
-          shop, 
+          ...getDefaultGameSettingsData(shop),
           appEmbedEnabled: true,
-          selectedGame: "bouncing-ball",
-          enabled: true,
         },
       });
     } else {
@@ -66,10 +65,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shop },
         update: { appEmbedEnabled: false },
         create: { 
-          shop, 
+          ...getDefaultGameSettingsData(shop),
           appEmbedEnabled: false,
-          selectedGame: "bouncing-ball",
-          enabled: true,
         },
       });
       
@@ -82,268 +79,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       where: { shop },
     });
 
-  // Default per-game settings
-  const defaultSettings = {
-    "horizontal-lines": {
-      backgroundColor: "#1F1F1F",
-      ballColor: "#17ACFD",
-      obstacleColor: "#FF3333",
-      popupText: "Discount Game",
-      borderRadius: 5,
-      gameAreaBorderRadius: 5,
-      gameEndBorderRadius: 0,
-      emailModalBorderRadius: 0,
-      discountModalBorderRadius: 0,
-      gameDifficulty: 50,
-      maxDiscount: "35",
-      mainText: "Discount Game",
-      mainTextSize: "28",
-      mainTextColor: "#1F1F1F",
-      mainTextBgColor: "#FFFFFF",
-      mainTextWeight: "600",
-      secondaryText: "Discount:",
-      secondaryTextColor: "#FFFFFF",
-      secondaryTextSize: "24",
-      secondaryTextWeight: "500",
-      rulesText: "1 Score = 1% Discount",
-      rulesTextColor: "#FFFFFF",
-      rulesTextSize: "14",
-      rulesTextWeight: "400",
-      instructionText: "Move left or right",
-      instructionTextColor: "#FFFFFF",
-      instructionTextSize: "16",
-      instructionTextWeight: "400",
-      gameEndText: "Your Discount",
-      gameEndTextColor: "#1F1F1F",
-      gameEndTextSize: "28",
-      gameEndTextWeight: "500",
-      buttonText: "Try Again",
-      buttonTextColor: "#FFFFFF",
-      buttonTextSize: "18",
-      buttonTextWeight: "500",
-      claimBestButtonText: "Claim",
-      claimBestButtonTextColor: "#FFFFFF",
-      claimBestButtonTextSize: "18",
-      claimBestButtonTextWeight: "500",
-      gameEndTabBgColor: "#FFFFFF",
-      buttonBgColor: "#1F1F1F",
-      claimBestButtonBgColor: "#1F1F1F",
-      emailModalHeadingText: "Enter Your Email",
-      emailModalHeadingColor: "#1F1F1F",
-      emailModalHeadingSize: "28",
-      emailModalHeadingWeight: "600",
-      emailModalDescriptionText: "Please enter your email address to claim your discount",
-      emailModalDescriptionColor: "#1F1F1F",
-      emailModalDescriptionSize: "18",
-      emailModalDescriptionWeight: "400",
-      emailModalSubmitText: "Submit",
-      emailModalSubmitColor: "#FFFFFF",
-      emailModalSubmitSize: "18",
-      emailModalSubmitWeight: "500",
-      emailModalCancelText: "Cancel",
-      emailModalCancelColor: "#1F1F1F",
-      emailModalCancelSize: "18",
-      emailModalCancelWeight: "500",
-      emailModalBgColor: "#FFFFFF",
-      emailModalSubmitBgColor: "#1F1F1F",
-      emailModalCancelBgColor: "#CCCCCC",
-      discountModalHeadingText: "Your Discount Code",
-      discountModalHeadingColor: "#1F1F1F",
-      discountModalHeadingSize: "24",
-      discountModalHeadingWeight: "600",
-      discountModalDescriptionText: "Copy your code and use it at checkout!",
-      discountModalDescriptionColor: "#1F1F1F",
-      discountModalDescriptionSize: "16",
-      discountModalDescriptionWeight: "400",
-      discountModalCloseText: "Continue Shopping",
-      discountModalCloseColor: "#FFFFFF",
-      discountModalCloseSize: "16",
-      discountModalCloseWeight: "500",
-      discountModalBgColor: "#FFFFFF",
-      discountModalCloseBgColor: "#1F1F1F",
-    },
-    "bouncing-ball": {
-      backgroundColor: "#15071D",
-      ballColor: "#9162F0",
-      obstacleColor: "#EDD08A",
-      popupText: "Discount Game",
-      borderRadius: 5,
-      gameAreaBorderRadius: 5,
-      gameEndBorderRadius: 0,
-      emailModalBorderRadius: 0,
-      discountModalBorderRadius: 0,
-      gameDifficulty: 50,
-      maxDiscount: "35",
-      mainText: "Discount Game",
-      mainTextSize: "28",
-      mainTextColor: "#15071D",
-      mainTextBgColor: "#FFFFFF",
-      mainTextWeight: "600",
-      secondaryText: "Discount:",
-      secondaryTextColor: "#FFFFFF",
-      secondaryTextSize: "24",
-      secondaryTextWeight: "500",
-      rulesText: "1 Score = 1% Discount",
-      rulesTextColor: "#FFFFFF",
-      rulesTextSize: "14",
-      rulesTextWeight: "400",
-      instructionText: "Click to Bounce",
-      instructionTextColor: "#FFFFFF",
-      instructionTextSize: "16",
-      instructionTextWeight: "400",
-      gameEndText: "Your Discount",
-      gameEndTextColor: "#15071D",
-      gameEndTextSize: "28",
-      gameEndTextWeight: "500",
-      buttonText: "Try Again",
-      buttonTextColor: "#FFFFFF",
-      buttonTextSize: "18",
-      buttonTextWeight: "500",
-      claimBestButtonText: "Claim",
-      claimBestButtonTextColor: "#FFFFFF",
-      claimBestButtonTextSize: "18",
-      claimBestButtonTextWeight: "500",
-      gameEndTabBgColor: "#FFFFFF",
-      buttonBgColor: "#15071D",
-      claimBestButtonBgColor: "#15071D",
-      emailModalHeadingText: "Enter Your Email",
-      emailModalHeadingColor: "#15071D",
-      emailModalHeadingSize: "28",
-      emailModalHeadingWeight: "600",
-      emailModalDescriptionText: "Please enter your email address to claim your discount",
-      emailModalDescriptionColor: "#15071D",
-      emailModalDescriptionSize: "18",
-      emailModalDescriptionWeight: "400",
-      emailModalSubmitText: "Submit",
-      emailModalSubmitColor: "#FFFFFF",
-      emailModalSubmitSize: "18",
-      emailModalSubmitWeight: "500",
-      emailModalCancelText: "Cancel",
-      emailModalCancelColor: "#15071D",
-      emailModalCancelSize: "18",
-      emailModalCancelWeight: "500",
-      emailModalBgColor: "#FFFFFF",
-      emailModalSubmitBgColor: "#15071D",
-      emailModalCancelBgColor: "#CCCCCC",
-      discountModalHeadingText: "Your Discount Code",
-      discountModalHeadingColor: "#15071D",
-      discountModalHeadingSize: "24",
-      discountModalHeadingWeight: "600",
-      discountModalDescriptionText: "Copy your code and use it at checkout!",
-      discountModalDescriptionColor: "#15071D",
-      discountModalDescriptionSize: "16",
-      discountModalDescriptionWeight: "400",
-      discountModalCloseText: "Continue Shopping",
-      discountModalCloseColor: "#FFFFFF",
-      discountModalCloseSize: "16",
-      discountModalCloseWeight: "500",
-      discountModalBgColor: "#FFFFFF",
-      discountModalCloseBgColor: "#15071D",
-    },
-    "reaction-click": {
-      backgroundColor: "#021412",
-      ballColor: "#00ce90",
-      popupText: "Discount Game",
-      borderRadius: 5,
-      gameAreaBorderRadius: 5,
-      gameEndBorderRadius: 0,
-      emailModalBorderRadius: 0,
-      discountModalBorderRadius: 0,
-      gameDifficulty: 50,
-      maxDiscount: "35",
-      countdownTime: 10,
-      mainText: "Discount Game",
-      mainTextSize: "28",
-      mainTextColor: "#021412",
-      mainTextBgColor: "#FFFFFF",
-      mainTextWeight: "600",
-      secondaryText: "Discount:",
-      secondaryTextColor: "#FFFFFF",
-      secondaryTextSize: "24",
-      secondaryTextWeight: "500",
-      rulesText: "1 Score = 1% Discount",
-      rulesTextColor: "#FFFFFF",
-      rulesTextSize: "14",
-      rulesTextWeight: "400",
-      instructionText: "Click to Start",
-      instructionTextColor: "#FFFFFF",
-      instructionTextSize: "16",
-      instructionTextWeight: "400",
-      gameEndText: "Your Discount",
-      gameEndTextColor: "#021412",
-      gameEndTextSize: "28",
-      gameEndTextWeight: "500",
-      buttonText: "Try Again",
-      buttonTextColor: "#FFFFFF",
-      buttonTextSize: "18",
-      buttonTextWeight: "500",
-      claimBestButtonText: "Claim",
-      claimBestButtonTextColor: "#FFFFFF",
-      claimBestButtonTextSize: "18",
-      claimBestButtonTextWeight: "500",
-      gameEndTabBgColor: "#FFFFFF",
-      buttonBgColor: "#021412",
-      claimBestButtonBgColor: "#021412",
-      emailModalHeadingText: "Enter Your Email",
-      emailModalHeadingColor: "#021412",
-      emailModalHeadingSize: "28",
-      emailModalHeadingWeight: "600",
-      emailModalDescriptionText: "Please enter your email address to claim your discount",
-      emailModalDescriptionColor: "#021412",
-      emailModalDescriptionSize: "18",
-      emailModalDescriptionWeight: "400",
-      emailModalSubmitText: "Submit",
-      emailModalSubmitColor: "#FFFFFF",
-      emailModalSubmitSize: "18",
-      emailModalSubmitWeight: "500",
-      emailModalCancelText: "Cancel",
-      emailModalCancelColor: "#021412",
-      emailModalCancelSize: "18",
-      emailModalCancelWeight: "500",
-      emailModalBgColor: "#FFFFFF",
-      emailModalSubmitBgColor: "#021412",
-      emailModalCancelBgColor: "#CCCCCC",
-      discountModalHeadingText: "Your Discount Code",
-      discountModalHeadingColor: "#021412",
-      discountModalHeadingSize: "24",
-      discountModalHeadingWeight: "600",
-      discountModalDescriptionText: "Copy your code and use it at checkout!",
-      discountModalDescriptionColor: "#021412",
-      discountModalDescriptionSize: "16",
-      discountModalDescriptionWeight: "400",
-      discountModalCloseText: "Continue Shopping",
-      discountModalCloseColor: "#FFFFFF",
-      discountModalCloseSize: "16",
-      discountModalCloseWeight: "500",
-      discountModalBgColor: "#FFFFFF",
-      discountModalCloseBgColor: "#021412",
-    },
-  };
+  // Use shared default settings (imported from utils)
+  const defaultSettings = defaultGameSettings;
 
   if (!settings) {
+    // Use shared helper to create complete settings with all defaults
     settings = await prisma.gameSettings.create({
-      data: {
-        shop,
-        selectedGame: "horizontal-lines",
-        enabled: true,
-        emailRequired: true,
-        requireName: false,
-        popupDelay: '3',
-        popupDisplayPage: 'any',
-        popupShowOnDesktop: true,
-        popupShowOnMobile: true,
-        showStickyButton: true,
-        stickyButtonText: "Discount Game",
-        stickyButtonColor: "#000000",
-        stickyButtonTextColor: "#ffffff",
-        stickyButtonPosition: "bottom",
-        stickyButtonDisplayPage: "any",
-        stickyButtonShowOnDesktop: true,
-        stickyButtonShowOnMobile: false,
-        bouncingBallSettings: defaultSettings["bouncing-ball"],
-        horizontalLinesSettings: defaultSettings["horizontal-lines"],
-        reactionClickSettings: defaultSettings["reaction-click"],
-      },
+      data: getDefaultGameSettingsData(shop),
     });
   }
 
@@ -392,8 +134,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       stickyButtonShowOnDesktop: (settings as any).stickyButtonShowOnDesktop ?? true,
       stickyButtonShowOnMobile: (settings as any).stickyButtonShowOnMobile ?? false,
       logoUrl: (settings as any).logoUrl ?? null,
+      logoUrlMobile: (settings as any).logoUrlMobile ?? null,
       logoScale: (settings as any).logoScale ?? 100,
       logoScaleMobile: (settings as any).logoScaleMobile ?? 100,
+      logoHeightDesktop: (settings as any).logoHeightDesktop ?? 'small',
+      logoHeightMobile: (settings as any).logoHeightMobile ?? 'small',
       showPopupHeaderText: (settings as any).showPopupHeaderText ?? true,
       bouncingBallSettings,
       horizontalLinesSettings,
@@ -448,10 +193,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const requireName = formData.get("requireName") === "true";
     const discountCodePrefix = (formData.get("discountCodePrefix") as string) || "GamePrize";
     const logoUrl = (formData.get("logoUrl") as string) || null;
+    const logoUrlMobile = (formData.get("logoUrlMobile") as string) || null;
     const logoScaleValue = parseInt(formData.get("logoScale") as string);
     const logoScale = isNaN(logoScaleValue) ? 100 : logoScaleValue;
     const logoScaleMobileValue = parseInt(formData.get("logoScaleMobile") as string);
     const logoScaleMobile = isNaN(logoScaleMobileValue) ? 100 : logoScaleMobileValue;
+    const logoHeightDesktop = (formData.get("logoHeightDesktop") as string) || 'small';
+    const logoHeightMobile = (formData.get("logoHeightMobile") as string) || 'small';
     const showPopupHeaderText = formData.get("showPopupHeaderText") === "true";
     
     // Handle numeric values that can be 0 - use isNaN check instead of || operator
@@ -942,8 +690,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       requireName,
       discountCodePrefix,
       logoUrl: logoUrl || null,
+      logoUrlMobile: logoUrlMobile || null,
       logoScale: logoScale,
       logoScaleMobile: logoScaleMobile,
+      logoHeightDesktop: logoHeightDesktop as any,
+      logoHeightMobile: logoHeightMobile as any,
       showPopupHeaderText: showPopupHeaderText as any,
       showStickyButton,
       stickyButtonText,
@@ -987,6 +738,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         requireName,
         discountCodePrefix,
         logoUrl: (logoUrl || null) as any,
+        logoUrlMobile: (logoUrlMobile || null) as any,
+        logoHeightDesktop: logoHeightDesktop as any,
+        logoHeightMobile: logoHeightMobile as any,
         showPopupHeaderText: showPopupHeaderText as any,
         showStickyButton: showStickyButton as any,
         stickyButtonText: stickyButtonText as any,
@@ -1049,6 +803,29 @@ export default function Settings() {
   const [stickyButtonShowOnDesktop, setStickyButtonShowOnDesktop] = useState(settings.stickyButtonShowOnDesktop ?? true);
   const [stickyButtonShowOnMobile, setStickyButtonShowOnMobile] = useState(settings.stickyButtonShowOnMobile ?? false);
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl ?? '');
+  const [logoUrlMobile, setLogoUrlMobile] = useState((settings as any).logoUrlMobile ?? '');
+  const [logoHeightDesktop, setLogoHeightDesktop] = useState((settings as any).logoHeightDesktop ?? 'small');
+  const [logoHeightMobile, setLogoHeightMobile] = useState((settings as any).logoHeightMobile ?? 'small');
+  
+  // Helper function to get height in pixels
+  const getHeaderHeight = (size: string, isMobile: boolean): number => {
+    if (isMobile) {
+      switch(size) {
+        case 'small': return 60;
+        case 'medium': return 70;
+        case 'large': return 80;
+        default: return 60;
+      }
+    } else {
+      switch(size) {
+        case 'small': return 70;
+        case 'medium': return 90;
+        case 'large': return 110;
+        default: return 70;
+      }
+    }
+  };
+  
   // Convert display value (0-100) to actual value (-25 to 200)
   const displayToActual = (display: number): number => {
     return -25 + (display / 100) * 225;
@@ -1859,6 +1636,13 @@ export default function Settings() {
     { label: 'After 60 seconds', value: '60' },
   ];
 
+  const borderRadiusOptions = [
+    { label: 'Square', value: '0' },
+    { label: 'Small Rounded', value: '5' },
+    { label: 'Large Rounded', value: '15' },
+    { label: 'Full Rounded', value: '25' },
+  ];
+
   // Update settings when selected game changes
   useEffect(() => {
     const current = getCurrentGameSettings(selectedGame);
@@ -2041,8 +1825,11 @@ export default function Settings() {
     formData.append("requireName", requireName.toString());
     formData.append("discountCodePrefix", discountCode);
     formData.append("logoUrl", logoUrl || '');
+    formData.append("logoUrlMobile", logoUrlMobile || '');
     formData.append("logoScale", logoScale.toString());
     formData.append("logoScaleMobile", logoScaleMobile.toString());
+    formData.append("logoHeightDesktop", logoHeightDesktop);
+    formData.append("logoHeightMobile", logoHeightMobile);
     formData.append("showPopupHeaderText", showPopupHeaderText.toString());
     
     // Sticky Button Settings
@@ -2280,11 +2067,18 @@ export default function Settings() {
                 height: previewMode === 'desktop' ? '600px' : '484px',
               }}>
                 {/* Preview Logo */}
-                {logoUrl && logoUrl.trim() !== '' && (() => {
-                  const baseHeight = previewMode === 'desktop' ? 80 : 60;
+                {(() => {
+                  const currentLogoUrl = previewMode === 'desktop' ? logoUrl : logoUrlMobile;
+                  if (!currentLogoUrl || currentLogoUrl.trim() === '') return null;
+                  
+                  const isMobilePreview = previewMode === 'mobile';
+                  const currentHeightSetting = isMobilePreview ? logoHeightMobile : logoHeightDesktop;
+                  const containerHeight = getHeaderHeight(currentHeightSetting, isMobilePreview);
+                  // Use fixed base size for image calculation (small size)
+                  const fixedBaseHeight = isMobilePreview ? 60 : 70; // Always use 'small' as base
                   const currentLogoScale = previewMode === 'desktop' ? logoScale : logoScaleMobile;
                   const scaleFactor = 1 + currentLogoScale / 25;
-                  const scaledHeight = (baseHeight * scaleFactor) + 'px';
+                  const scaledHeight = (fixedBaseHeight * scaleFactor) + 'px';
                   
                   return (
                     <div style={{
@@ -2294,11 +2088,11 @@ export default function Settings() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
-                      height: baseHeight + 'px',
+                      height: containerHeight + 'px',
                       overflow: 'hidden',
                     }}>
                       <img 
-                        src={logoUrl} 
+                        src={currentLogoUrl} 
                         alt="Logo preview" 
                         style={{
                           maxHeight: scaledHeight,
@@ -2310,7 +2104,7 @@ export default function Settings() {
                           transformOrigin: 'center center',
                         }}
                         onError={(e) => {
-                          console.error('Failed to load logo in preview:', logoUrl);
+                          console.error('Failed to load logo in preview:', currentLogoUrl);
                           e.currentTarget.style.display = 'none';
                         }}
                       />
@@ -2652,12 +2446,346 @@ export default function Settings() {
                       </BlockStack>
                     </div>
 
+                    {/* Header Image - Desktop and Mobile */}
+                    <div style={{ textAlign: "center", marginBottom: "-6px", marginTop: '6px' }}>
+                      <Text variant="headingLg" as="h2">Header Image</Text>
+                    </div>
+                    <div style={{ marginTop: '6px' }}>
+                      <InlineGrid columns={2} gap="400">
+                        {/* Header Image - Desktop */}
+                        <Card>
+                          <BlockStack gap="400">
+                            <BlockStack gap="200">
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '8px' }}>
+                                <div style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <Icon source={DesktopIcon} />
+                                </div>
+                                <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                  Desktop
+                                </Text>
+                              </div>
+                              <DropZone
+                                accept="image/*"
+                                type="file"
+                                onDrop={(files: File[]) => {
+                                  if (files.length > 0) {
+                                    const file = files[0];
+                                    const formData = new FormData();
+                                    formData.append("file", file);
+                                    
+                                    // Upload to Railway Storage
+                                    fetch("/api/upload-logo", {
+                                      method: "POST",
+                                      body: formData,
+                                    })
+                                      .then((res) => res.json())
+                                      .then((data) => {
+                                        if (data.url) {
+                                          setLogoUrl(data.url);
+                                          
+                                          // Test if image loads through proxy
+                                          const img = new Image();
+                                          img.onload = () => {
+                                            // Image loaded successfully
+                                          };
+                                          img.onerror = () => {
+                                            console.error("Image failed to load from proxy URL:", data.url);
+                                          };
+                                          img.src = data.url;
+                                        } else {
+                                          console.error("Upload failed:", data.error, data.details);
+                                          alert(`Upload failed: ${data.error || "Unknown error"}\n${data.details || ""}`);
+                                        }
+                                      })
+                                      .catch((error) => {
+                                        console.error("Upload error:", error);
+                                        alert("Upload error: " + error.message);
+                                      });
+                                  }
+                                }}
+                              >
+                                {logoUrl ? (
+                                  <div style={{ padding: '20px', textAlign: 'center' }}>
+                                    <BlockStack gap="200" align="center">
+                                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <Thumbnail
+                                          source={logoUrl}
+                                          alt="Desktop logo preview"
+                                          size="large"
+                                        />
+                                      </div>
+                                      
+                                      <div 
+                                        style={{ display: 'inline-block' }}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                        }}
+                                      >
+                                        <Button
+                                          variant="secondary"
+                                          tone="critical"
+                                          onClick={() => setLogoUrl('')}
+                                        >
+                                          Remove
+                                        </Button>
+                                      </div>
+                                    </BlockStack>
+                                  </div>
+                                ) : (
+                                  <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                                    <BlockStack gap="200" align="center">
+                                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <div style={{ transform: 'scale(1.5)' }}>
+                                          <Icon source={ImageAddIcon} />
+                                        </div>
+                                      </div>
+                                      <BlockStack gap="100" align="center">
+                                        <Text variant="bodyMd" as="p">
+                                          Drop image here or upload
+                                        </Text>
+                                        <Text variant="bodySm" as="p" tone="subdued">
+                                          Supports: JPG, PNG, GIF, WebP (Max 1MB)
+                                        </Text>
+                                      </BlockStack>
+                                    </BlockStack>
+                                  </div>
+                                )}
+                              </DropZone>
+                              
+                              {/* Desktop Size Slider */}
+                              {logoUrl && (
+                                <div style={{ width: '100%', padding: '0 10px', marginTop: '5px' }}>
+                                  <BlockStack gap="200">
+                                    <div style={{ textAlign: 'center' }}>
+                                      <Text variant="bodyMd" as="p" fontWeight="medium">Image size</Text>
+                                    </div>
+                                    <RangeSlider
+                                      label=""
+                                      value={logoScaleDisplay}
+                                      onChange={(value) => {
+                                        const numValue = typeof value === 'number' ? value : value[0];
+                                        setLogoScaleDisplay(numValue);
+                                      }}
+                                      min={0}
+                                      max={100}
+                                      step={1}
+                                      output
+                                    />
+                                  </BlockStack>
+                                </div>
+                              )}
+                              
+                              {/* Desktop Header Height */}
+                              {logoUrl && (
+                                <div style={{ width: '100%', padding: '0 10px', marginTop: '2px', marginBottom: '10px' }}>
+                                  <BlockStack gap="200">
+                                    <div style={{ textAlign: 'center' }}>
+                                      <Text variant="bodyMd" as="p" fontWeight="medium">Header Height</Text>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                      <ButtonGroup variant="segmented">
+                                        <Button
+                                          onClick={() => setLogoHeightDesktop('small')}
+                                          variant="secondary"
+                                          pressed={logoHeightDesktop === 'small'}
+                                        >
+                                          Small
+                                        </Button>
+                                        <Button
+                                          onClick={() => setLogoHeightDesktop('medium')}
+                                          variant="secondary"
+                                          pressed={logoHeightDesktop === 'medium'}
+                                        >
+                                          Medium
+                                        </Button>
+                                        <Button
+                                          onClick={() => setLogoHeightDesktop('large')}
+                                          variant="secondary"
+                                          pressed={logoHeightDesktop === 'large'}
+                                        >
+                                          Large
+                                        </Button>
+                                      </ButtonGroup>
+                                    </div>
+                                  </BlockStack>
+                                </div>
+                              )}
+                            </BlockStack>
+                          </BlockStack>
+                        </Card>
+
+                        {/* Header Image - Mobile */}
+                        <Card>
+                          <BlockStack gap="400">
+                            <BlockStack gap="200">
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '8px' }}>
+                                <div style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <Icon source={MobileIcon} />
+                                </div>
+                                <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                  Mobile
+                                </Text>
+                              </div>
+                              <DropZone
+                                accept="image/*"
+                                type="file"
+                                onDrop={(files: File[]) => {
+                                  if (files.length > 0) {
+                                    const file = files[0];
+                                    const formData = new FormData();
+                                    formData.append("file", file);
+                                    
+                                    // Upload to Railway Storage
+                                    fetch("/api/upload-logo", {
+                                      method: "POST",
+                                      body: formData,
+                                    })
+                                      .then((res) => res.json())
+                                      .then((data) => {
+                                        if (data.url) {
+                                          setLogoUrlMobile(data.url);
+                                          
+                                          // Test if image loads through proxy
+                                          const img = new Image();
+                                          img.onload = () => {
+                                            // Image loaded successfully
+                                          };
+                                          img.onerror = () => {
+                                            console.error("Image failed to load from proxy URL:", data.url);
+                                          };
+                                          img.src = data.url;
+                                        } else {
+                                          console.error("Upload failed:", data.error, data.details);
+                                          alert(`Upload failed: ${data.error || "Unknown error"}\n${data.details || ""}`);
+                                        }
+                                      })
+                                      .catch((error) => {
+                                        console.error("Upload error:", error);
+                                        alert("Upload error: " + error.message);
+                                      });
+                                  }
+                                }}
+                              >
+                                {logoUrlMobile ? (
+                                  <div style={{ padding: '20px', textAlign: 'center' }}>
+                                    <BlockStack gap="200" align="center">
+                                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <Thumbnail
+                                          source={logoUrlMobile}
+                                          alt="Mobile logo preview"
+                                          size="large"
+                                        />
+                                      </div>
+                                      
+                                      <div 
+                                        style={{ display: 'inline-block' }}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                        }}
+                                      >
+                                        <Button
+                                          variant="secondary"
+                                          tone="critical"
+                                          onClick={() => setLogoUrlMobile('')}
+                                        >
+                                          Remove
+                                        </Button>
+                                      </div>
+                                    </BlockStack>
+                                  </div>
+                                ) : (
+                                  <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                                    <BlockStack gap="200" align="center">
+                                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        <div style={{ transform: 'scale(1.5)' }}>
+                                          <Icon source={ImageAddIcon} />
+                                        </div>
+                                      </div>
+                                      <BlockStack gap="100" align="center">
+                                        <Text variant="bodyMd" as="p">
+                                          Drop image here or upload
+                                        </Text>
+                                        <Text variant="bodySm" as="p" tone="subdued">
+                                          Supports: JPG, PNG, GIF, WebP (Max 1MB)
+                                        </Text>
+                                      </BlockStack>
+                                    </BlockStack>
+                                  </div>
+                                )}
+                              </DropZone>
+                              
+                              {/* Mobile Size Slider */}
+                              {logoUrlMobile && (
+                                <div style={{ width: '100%', padding: '0 10px', marginTop: '5px' }}>
+                                  <BlockStack gap="200">
+                                    <div style={{ textAlign: 'center' }}>
+                                      <Text variant="bodyMd" as="p" fontWeight="medium">Image size</Text>
+                                    </div>
+                                    <RangeSlider
+                                      label=""
+                                      value={logoScaleMobileDisplay}
+                                      onChange={(value) => {
+                                        const numValue = typeof value === 'number' ? value : value[0];
+                                        setLogoScaleMobileDisplay(numValue);
+                                      }}
+                                      min={0}
+                                      max={100}
+                                      step={1}
+                                      output
+                                    />
+                                  </BlockStack>
+                                </div>
+                              )}
+                              
+                              {/* Mobile Header Height */}
+                              {logoUrlMobile && (
+                                <div style={{ width: '100%', padding: '0 10px', marginTop: '2px', marginBottom: '10px' }}>
+                                  <BlockStack gap="200">
+                                    <div style={{ textAlign: 'center' }}>
+                                      <Text variant="bodyMd" as="p" fontWeight="medium">Header Height</Text>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                      <ButtonGroup variant="segmented">
+                                        <Button
+                                          onClick={() => setLogoHeightMobile('small')}
+                                          variant="secondary"
+                                          pressed={logoHeightMobile === 'small'}
+                                        >
+                                          Small
+                                        </Button>
+                                        <Button
+                                          onClick={() => setLogoHeightMobile('medium')}
+                                          variant="secondary"
+                                          pressed={logoHeightMobile === 'medium'}
+                                        >
+                                          Medium
+                                        </Button>
+                                        <Button
+                                          onClick={() => setLogoHeightMobile('large')}
+                                          variant="secondary"
+                                          pressed={logoHeightMobile === 'large'}
+                                        >
+                                          Large
+                                        </Button>
+                                      </ButtonGroup>
+                                    </div>
+                                  </BlockStack>
+                                </div>
+                              )}
+                            </BlockStack>
+                          </BlockStack>
+                        </Card>
+                      </InlineGrid>
+                    </div>
+
                     {/* Pop Up Border Radius */}
                     <div style={{ marginTop: '6px' }}>
                       <BlockStack gap="300">
                         <BlockStack gap="200">
                           <Text variant="headingMd" as="p" alignment="center">
-                            Corner Radius: <span style={{ fontWeight: 'normal' }}>{borderRadius}px</span>
+                            Border Radius: <span style={{ fontWeight: 'normal' }}>{borderRadius}px</span>
                           </Text>
                           <RangeSlider
                             label=""
@@ -2666,167 +2794,8 @@ export default function Settings() {
                             min={0}
                             max={25}
                             output
-                            suffix="px"
                           />
                         </BlockStack>
-                      </BlockStack>
-                    </div>
-
-                    {/* Logo Upload */}
-                    <div style={{ marginTop: '6px' }}>
-                      <BlockStack gap="200">
-                        <Text variant="headingMd" as="p" alignment="center">Header Image</Text>
-                        
-                        <DropZone
-                          accept="image/*"
-                          type="file"
-                          onDrop={(files: File[]) => {
-                            if (files.length > 0) {
-                              const file = files[0];
-                              const formData = new FormData();
-                              formData.append("file", file);
-                              
-                              // Upload to Railway Storage
-                              fetch("/api/upload-logo", {
-                                method: "POST",
-                                body: formData,
-                              })
-                                .then((res) => res.json())
-                                .then((data) => {
-                                  if (data.url) {
-                                    console.log("Upload successful, URL:", data.url); // Debug
-                                    setLogoUrl(data.url);
-                                    
-                                    // Test if image loads through proxy
-                                    const img = new Image();
-                                    img.onload = () => {
-                                      console.log("Image loaded successfully through proxy");
-                                    };
-                                    img.onerror = () => {
-                                      console.error("Image failed to load from proxy URL:", data.url);
-                                      // Don't show alert, just log - the URL is still saved
-                                    };
-                                    img.src = data.url;
-                                  } else {
-                                    console.error("Upload failed:", data.error, data.details);
-                                    alert(`Upload failed: ${data.error || "Unknown error"}\n${data.details || ""}`);
-                                  }
-                                })
-                                .catch((error) => {
-                                  console.error("Upload error:", error);
-                                  alert("Upload error: " + error.message);
-                                });
-                            }
-                          }}
-                        >
-                          {logoUrl ? (
-                            <div style={{ padding: '20px', textAlign: 'center' }}>
-                              <BlockStack gap="200" align="center">
-                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                  <Thumbnail
-                                    source={logoUrl}
-                                    alt="Logo preview"
-                                    size="large"
-                                  />
-                                </div>
-                                
-                                <div 
-                                  style={{ display: 'inline-block' }}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  <Button
-                                    variant="secondary"
-                                    tone="critical"
-                                    onClick={() => setLogoUrl('')}
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
-                              </BlockStack>
-                            </div>
-                          ) : (
-                            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                              <BlockStack gap="200" align="center">
-                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                  <div style={{ transform: 'scale(1.5)' }}>
-                                    <Icon source={ImageAddIcon} />
-                                  </div>
-                                </div>
-                                <BlockStack gap="100" align="center">
-                                  <Text variant="bodyMd" as="p">
-                                    Drop image here or upload
-                                  </Text>
-                                  <Text variant="bodySm" as="p" tone="subdued">
-                                    Supports: JPG, PNG, GIF, WebP (Max 2MB)
-                                  </Text>
-                                </BlockStack>
-                              </BlockStack>
-                            </div>
-                          )}
-                        </DropZone>
-                        
-                        {/* Logo Size Slider - Moved outside DropZone */}
-                        {logoUrl && (
-                          <div style={{ width: '100%', padding: '0 20px', marginTop: '10px' }}>
-                            <BlockStack gap="100">
-                              <div style={{ textAlign: 'center' }}>
-                                <Text variant="headingMd" as="p">Image size</Text>
-                              </div>
-                              <InlineGrid columns={2} gap="400">
-                              {/* Desktop Size Slider */}
-                              <BlockStack gap="200">
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                                  <div style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                    <Icon source={DesktopIcon} />
-                                  </div>
-                                  <Text variant="bodyMd" as="span">
-                                    Desktop
-                                  </Text>
-                                </div>
-                                <RangeSlider
-                                  label=""
-                                  value={logoScaleDisplay}
-                                  onChange={(value) => {
-                                    const numValue = typeof value === 'number' ? value : value[0];
-                                    setLogoScaleDisplay(numValue);
-                                  }}
-                                  min={0}
-                                  max={100}
-                                  step={1}
-                                  output
-                                />
-                              </BlockStack>
-                              
-                              {/* Mobile Size Slider */}
-                              <BlockStack gap="200">
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                                  <div style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                    <Icon source={MobileIcon} />
-                                  </div>
-                                  <Text variant="bodyMd" as="span">
-                                    Mobile
-                                  </Text>
-                                </div>
-                                <RangeSlider
-                                  label=""
-                                  value={logoScaleMobileDisplay}
-                                  onChange={(value) => {
-                                    const numValue = typeof value === 'number' ? value : value[0];
-                                    setLogoScaleMobileDisplay(numValue);
-                                  }}
-                                  min={0}
-                                  max={100}
-                                  step={1}
-                                  output
-                                />
-                              </BlockStack>
-                            </InlineGrid>
-                            </BlockStack>
-                          </div>
-                        )}
                       </BlockStack>
                     </div>
                   </BlockStack>
@@ -3246,14 +3215,11 @@ export default function Settings() {
                           </BlockStack>
                           <BlockStack gap="200">
                             <Text variant="headingMd" as="p">Border Radius</Text>
-                            <RangeSlider
+                            <Select
                               label=""
-                              value={gameEndBorderRadius}
-                              onChange={setGameEndBorderRadius}
-                              min={0}
-                              max={25}
-                              output
-                              suffix="px"
+                              options={borderRadiusOptions}
+                              value={gameEndBorderRadius.toString()}
+                              onChange={(value) => setGameEndBorderRadius(parseInt(value))}
                             />
                           </BlockStack>
                         </InlineGrid>
@@ -3542,14 +3508,11 @@ export default function Settings() {
                           </BlockStack>
                           <BlockStack gap="300">
                             <Text variant="headingMd" as="p">Border Radius</Text>
-                            <RangeSlider
+                            <Select
                               label=""
-                              value={emailModalBorderRadius}
-                              onChange={setEmailModalBorderRadius}
-                              min={0}
-                              max={25}
-                              output
-                              suffix="px"
+                              options={borderRadiusOptions}
+                              value={emailModalBorderRadius.toString()}
+                              onChange={(value) => setEmailModalBorderRadius(parseInt(value))}
                             />
                           </BlockStack>
                         </InlineGrid>
@@ -3777,14 +3740,11 @@ export default function Settings() {
                           </BlockStack>
                           <BlockStack gap="300">
                             <Text variant="headingMd" as="p">Border Radius</Text>
-                            <RangeSlider
+                            <Select
                               label=""
-                              value={discountModalBorderRadius}
-                              onChange={setDiscountModalBorderRadius}
-                              min={0}
-                              max={25}
-                              output
-                              suffix="px"
+                              options={borderRadiusOptions}
+                              value={discountModalBorderRadius.toString()}
+                              onChange={(value) => setDiscountModalBorderRadius(parseInt(value))}
                             />
                           </BlockStack>
                         </InlineGrid>
@@ -3798,8 +3758,11 @@ export default function Settings() {
           </div>
 
           {/* 4. Display Options */}
-          <div style={{ marginTop: '24px' }}>
+          <div style={{ marginTop: '24px', marginBottom: '20px' }}>
             <Card>
+              <div style={{ textAlign: "center", marginBottom: "20px", marginTop: '6px' }}>
+                <Text variant="headingLg" as="h2">Display Options</Text>
+              </div>
               <InlineGrid columns={2} gap="400">
                 <Card>
                   <BlockStack gap="400">

@@ -32,10 +32,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     if (!settings) {
       // Return default settings if none exist
+      // Note: Settings should be created by onboarding/check-app-embed before API is called
+      // But return enabled: true as default so popup can show if settings exist elsewhere
       return Response.json(
         {
-          enabled: false,
-          selectedGame: "bouncing-ball",
+          enabled: true,
+          selectedGame: "horizontal-lines",
           requireEmailToClaim: true,
           requireName: false,
         },
@@ -44,7 +46,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     // Get per-game settings based on selected game
-    const selectedGame = settings.selectedGame || "bouncing-ball";
+    const selectedGame = settings.selectedGame || "horizontal-lines";
     let gameSettings = {};
 
     if (selectedGame === "horizontal-lines" && settings.horizontalLinesSettings) {
@@ -86,8 +88,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       buttonBgColor: gameSettings.buttonBgColor || "#000000",
       claimBestButtonBgColor: gameSettings.claimBestButtonBgColor || "#000000",
       logoUrl: settings.logoUrl || null,
+      logoUrlMobile: settings.logoUrlMobile || null,
       logoScale: settings.logoScale ?? 100,
       logoScaleMobile: settings.logoScaleMobile ?? 100,
+      logoHeightDesktop: settings.logoHeightDesktop ?? 'small',
+      logoHeightMobile: settings.logoHeightMobile ?? 'small',
       popupDisplayPage: settings.popupDisplayPage || 'any',
       popupCustomUrls: settings.popupCustomUrls || [],
       showStickyButton: settings.showStickyButton,
