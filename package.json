@@ -18,7 +18,10 @@
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
-    "typecheck": "react-router typegen && tsc --noEmit"
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "switch:env": "node scripts/switch-env.js",
+    "switch:prod": "node scripts/switch-env.js production",
+    "switch:local": "node scripts/switch-env.js local"
   },
   "type": "module",
   "engines": {
