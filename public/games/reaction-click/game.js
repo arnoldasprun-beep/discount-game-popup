@@ -31,7 +31,7 @@ class ReactionGame {
         this.device = urlParams.get('device') || (window.innerWidth <= 768 ? 'Mobile' : 'Desktop');
         this.isMobile = window.innerWidth <= 768; // Match CSS breakpoint
         this.gameType = 'reaction-click'; // Reaction Click
-        this.appUrl = 'https://trialapp.traffishow.com'; // Will be replaced with deployed URL
+        this.appUrl = 'https://discount-game-popup-production.up.railway.app';
         
         // Store colors
         this.backgroundColor = bgColor;

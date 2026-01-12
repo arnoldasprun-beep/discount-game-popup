@@ -42,7 +42,7 @@ class BouncingBallGame {
         this.sessionId = urlParams.get('sessionId') || '';
         this.device = urlParams.get('device') || (window.innerWidth <= 768 ? 'Mobile' : 'Desktop');
         this.gameType = 'bouncing-ball'; // Spike Dodge
-        this.appUrl = 'https://trialapp.traffishow.com'; // Will be replaced with deployed URL
+        this.appUrl = 'https://discount-game-popup-production.up.railway.app';
         
         // Read text settings from URL
         this.textSettings = {

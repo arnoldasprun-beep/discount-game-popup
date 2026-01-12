@@ -29,7 +29,7 @@ let hmrConfig = {
 
 export default defineConfig({
   server: {
-    allowedHosts: [host, "trialapp.traffishow.com", "localhost"],
+    allowedHosts: [host, "trialapp.traffishow.com", "discount-game-popup-production.up.railway.app", "localhost"],
     cors: {
       preflightContinue: true,
     },
