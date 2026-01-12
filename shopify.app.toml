@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "e29ac76f642703b2360d69d99a9dbba3"
+client_id = "6ad96fb3e2b676eae966d76070817c08"
 name = "trial"
 application_url = "https://discount-game-popup-production.up.railway.app"
 embedded = true
