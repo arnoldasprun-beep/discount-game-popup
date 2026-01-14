@@ -119,6 +119,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     settings: {
       ...settings,
       discountCodePrefix: settings.discountCodePrefix ?? "GamePrize",
+      isActive: (settings as any).isActive ?? false,
       popupShowOnDesktop: (settings as any).popupShowOnDesktop ?? true,
       popupShowOnMobile: (settings as any).popupShowOnMobile ?? true,
       popupDelay: (settings as any).popupDelay ?? '3',
@@ -177,6 +178,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     const selectedGame = formData.get("selectedGame") as string;
     const enabled = formData.get("enabled") === "true";
+    const isActive = formData.get("isActive") === "true";
     const popupShowOnDesktop = formData.get("popupShowOnDesktop") === "true";
     const popupShowOnMobile = formData.get("popupShowOnMobile") === "true";
     const popupDelay = (formData.get("popupDelay") as string) || "0";
@@ -681,6 +683,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const updateData: any = {
       selectedGame,
       enabled,
+      isActive,
       popupShowOnDesktop,
       popupShowOnMobile,
       popupDelay,
@@ -729,6 +732,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shop,
         selectedGame,
         enabled,
+        isActive,
         popupShowOnDesktop: popupShowOnDesktop as any,
         popupShowOnMobile: popupShowOnMobile as any,
         popupDelay: popupDelay as any,
@@ -780,6 +784,7 @@ export default function Settings() {
   const [selectedGame, setSelectedGame] = useState(settings.selectedGame || "horizontal-lines");
   const [emailRequired, setEmailRequired] = useState(settings.emailRequired ?? true);
   const [showAutoPopUp, setShowAutoPopUp] = useState(settings.enabled ?? true);
+  const [isActive, setIsActive] = useState((settings as any).isActive ?? false);
   const [showStickyButton, setShowStickyButton] = useState(settings.showStickyButton ?? true);
   const [popupDelay, setPopupDelay] = useState(settings.popupDelay ?? '3');
   const [popupDisplayPage, setPopupDisplayPage] = useState(settings.popupDisplayPage ?? 'any');
@@ -1769,6 +1774,7 @@ export default function Settings() {
     const formData = new FormData();
     formData.append("selectedGame", selectedGame);
     formData.append("enabled", showAutoPopUp.toString());
+    formData.append("isActive", isActive.toString());
     formData.append("popupShowOnDesktop", showOnDesktop.toString());
     formData.append("popupShowOnMobile", showOnMobile.toString());
     formData.append("popupDelay", popupDelay);
@@ -1962,7 +1968,9 @@ export default function Settings() {
               position: 'relative',
             }}>
               {/* Sticky Button */}
-              {showStickyButton && (
+              {showStickyButton && 
+  ((previewMode === 'mobile' && stickyButtonShowOnMobile) || 
+   (previewMode === 'desktop' && stickyButtonShowOnDesktop)) && (
                 <>
                   {/* Close Button */}
                   <button
@@ -3884,8 +3892,10 @@ export default function Settings() {
                         ]}
                         value={stickyButtonPosition}
                         onChange={setStickyButtonPosition}
+
                       />
                     </InlineGrid>
+
                     <InlineStack gap="400">
                       <RadioButton
                         label="Display on any page"
@@ -3945,7 +3955,74 @@ export default function Settings() {
                   </BlockStack>
                 </Card>
               </InlineGrid>
+
+              <div style={{ 
+                marginBottom: '0px', 
+                marginTop: '24px',
+                padding: '20px', 
+                background: isActive ? '#e8f5e9' : '#f5f5f5',
+                borderRadius: '8px',
+                border: `2px solid ${isActive ? '#4caf50' : '#e0e0e0'}`,
+                textAlign: 'center'
+              }}>
+                <BlockStack gap="300">
+                  <Text variant="bodyLg" as="p" fontWeight="semibold">
+                    Start showing your discount game pop up
+                  </Text>
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '14px', color: isActive ? '#4caf50' : '#666', fontWeight: '500' }}>
+                      {isActive ? 'ON' : 'OFF'}
+                    </span>
+                    <label style={{ 
+                      position: 'relative',
+                      display: 'inline-block',
+                      width: '60px',
+                      height: '34px',
+                      cursor: 'pointer'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={isActive}
+                        onChange={(e) => setIsActive(e.target.checked)}
+                        style={{
+                          opacity: 0,
+                          width: 0,
+                          height: 0,
+                          position: 'absolute'
+                        }}
+                      />
+                      <span style={{
+                        position: 'absolute',
+                        cursor: 'pointer',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: isActive ? '#4caf50' : '#ccc',
+                        transition: '.4s',
+                        borderRadius: '34px'
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          content: '""',
+                          height: '26px',
+                          width: '26px',
+                          left: '4px',
+                          bottom: '4px',
+                          backgroundColor: 'white',
+                          transition: '.4s',
+                          borderRadius: '50%',
+                          transform: isActive ? 'translateX(26px)' : 'translateX(0)'
+                        }}></span>
+                      </span>
+                    </label>
+                  </div>
+                </BlockStack>
+              </div>
+
             </Card>
+
+
           </div>
 
           {/* Submit Button */}

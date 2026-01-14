@@ -22,7 +22,7 @@ export default function Privacy() {
       <section style={{ marginTop: "2rem" }}>
         <h2>1. Introduction</h2>
         <p>
-          Discount Game ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and protect information when you use our Shopify app (the "Service").
+          Discount Game Popup ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and protect information when you use our Shopify app (the "Service").
         </p>
       </section>
 
@@ -40,7 +40,7 @@ export default function Privacy() {
         <h3>2.2 Customer Data</h3>
         <p>When customers play the discount game and claim discount codes, we collect:</p>
         <ul>
-          <li><strong>Email Address:</strong> Required to generate and deliver discount codes</li>
+          <li><strong>Email Address:</strong> Optional - may be required based on store settings to generate and deliver discount codes</li>
           <li><strong>Name (Optional):</strong> First and last name if provided by the customer</li>
           <li><strong>Discount Code:</strong> The discount code generated for the customer</li>
           <li><strong>Discount Percentage:</strong> The discount percentage won in the game</li>

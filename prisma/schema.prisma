@@ -46,6 +46,7 @@ model GameSettings {
   shop                    String   @unique
   selectedGame            String   @default("horizontal-lines")
   enabled                 Boolean  @default(true)
+  isActive                Boolean  @default(false)
   appEmbedEnabled         Boolean  @default(false)
   popupShowOnDesktop      Boolean  @default(true)
   popupShowOnMobile       Boolean  @default(true)

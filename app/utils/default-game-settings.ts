@@ -242,6 +242,7 @@ export function getDefaultGameSettingsData(shop: string) {
     shop,
     selectedGame: "horizontal-lines",
     enabled: true,
+    isActive: false,
     appEmbedEnabled: false,
     popupDelay: '3',
     popupDisplayPage: 'any',

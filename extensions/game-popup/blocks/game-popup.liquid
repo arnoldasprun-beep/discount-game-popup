@@ -209,11 +209,20 @@
       }
       
       // Fetch game settings from API
-      fetch(appUrl + '/api/settings?shop=' + shop)
-        .then(response => response.json())
+      const settingsUrl = appUrl + '/api/settings?shop=' + shop;
+      
+      fetch(settingsUrl)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
-          if (!data.enabled) {
-            return; // Don't show if disabled
+          
+          // Only show if both enabled AND isActive are explicitly true
+          if (!data.enabled || data.isActive !== true) {
+            return; // Don't show if disabled or not active
           }
 
           const gameType = data.selectedGame || 'horizontal-lines';
@@ -613,8 +622,8 @@
             }
           }
           
-          // Show sticky button if enabled (check if it was dismissed today)
-          if (showStickyButton) {
+          // Show sticky button if enabled and active (check if it was dismissed today)
+          if (showStickyButton && data.isActive === true) {
             const stickyButtonDismissed = localStorage.getItem('game-sticky-button-dismissed-' + shop);
             const wasStickyButtonDismissedToday = stickyButtonDismissed === today;
             

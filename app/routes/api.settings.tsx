@@ -37,6 +37,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return Response.json(
         {
           enabled: true,
+          isActive: false,
           selectedGame: "horizontal-lines",
           requireEmailToClaim: true,
           requireName: false,
@@ -60,6 +61,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Merge base settings with per-game settings
     const response = {
       enabled: settings.enabled,
+      isActive: (settings as any).isActive ?? false,
       selectedGame: settings.selectedGame,
       requireEmailToClaim: settings.emailRequired,
       requireName: settings.requireName,
