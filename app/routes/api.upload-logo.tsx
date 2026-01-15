@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // CORS headers
 const corsHeaders = {
@@ -88,20 +89,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const s3Client = new S3Client(s3ClientConfig);
 
       // Upload to S3/Railway Storage
-      const command = new PutObjectCommand({
+      const putCommand = new PutObjectCommand({
         Bucket: process.env.AWS_S3_BUCKET,
         Key: key,
         Body: buffer,
         ContentType: file.type,
-        ACL: "public-read",
       });
 
-      await s3Client.send(command);
+      await s3Client.send(putCommand);
 
-      // Construct public URL
-      const url = isRailwayStorage
-        ? `${endpoint}/${process.env.AWS_S3_BUCKET}/${key}`
-        : `https://${process.env.AWS_S3_BUCKET}.s3.${region}.amazonaws.com/${key}`;
+      // Generate signed URL (valid for 1 year)
+      const getCommand = new GetObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKET,
+        Key: key,
+      });
+
+      const url = await getSignedUrl(s3Client, getCommand, {
+        expiresIn: 365 * 24 * 60 * 60, // 1 year in seconds
+      });
 
       return Response.json({ url }, { headers: corsHeaders });
     } else {
