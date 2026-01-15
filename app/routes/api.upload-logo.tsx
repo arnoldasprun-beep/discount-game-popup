@@ -93,6 +93,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         Key: key,
         Body: buffer,
         ContentType: file.type,
+        ACL: "public-read",
       });
 
       await s3Client.send(command);
