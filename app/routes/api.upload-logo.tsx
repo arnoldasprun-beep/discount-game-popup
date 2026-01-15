@@ -9,6 +9,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+// Initialize S3 client
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION || "us-east-1",
+  credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+    ? {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      }
+    : undefined,
+});
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   // Handle OPTIONS preflight
   if (request.method === "OPTIONS") {
@@ -52,8 +63,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // If Railway Storage is configured, upload to Railway Storage
-    if (process.env.RAILWAY_STORAGE_BUCKET_NAME && process.env.RAILWAY_STORAGE_ACCESS_KEY) {
+    // If S3 is configured, upload to S3
+    if (process.env.AWS_S3_BUCKET && process.env.AWS_ACCESS_KEY_ID) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
@@ -63,23 +74,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const extension = file.name.split(".").pop() || "png";
       const key = `logos/${timestamp}-${randomString}.${extension}`;
 
-      // Initialize S3 client with Railway Storage configuration
-      const region = process.env.RAILWAY_STORAGE_REGION || "auto";
-      const endpoint = process.env.RAILWAY_STORAGE_ENDPOINT || "https://storage.railway.app";
-      
-      const s3Client = new S3Client({
-        region: "us-east-1", // Railway Storage doesn't use AWS regions, but SDK requires one
-        endpoint: endpoint,
-        forcePathStyle: true, // Railway Storage uses path-style URLs
-        credentials: {
-          accessKeyId: process.env.RAILWAY_STORAGE_ACCESS_KEY,
-          secretAccessKey: process.env.RAILWAY_STORAGE_SECRET_KEY || "",
-        },
-      });
-
-      // Upload to Railway Storage
+      // Upload to S3
       const command = new PutObjectCommand({
-        Bucket: process.env.RAILWAY_STORAGE_BUCKET_NAME,
+        Bucket: process.env.AWS_S3_BUCKET,
         Key: key,
         Body: buffer,
         ContentType: file.type,
@@ -88,13 +85,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       await s3Client.send(command);
 
-      // Construct Railway Storage URL (path-style)
-      const url = `${endpoint}/${process.env.RAILWAY_STORAGE_BUCKET_NAME}/${key}`;
+      // Construct public URL
+      const region = process.env.AWS_REGION || "us-east-1";
+      const url = `https://${process.env.AWS_S3_BUCKET}.s3.${region}.amazonaws.com/${key}`;
 
       return Response.json({ url }, { headers: corsHeaders });
     } else {
       // Fallback: return a data URL (not recommended for production)
-      // This is a temporary solution if Railway Storage is not configured
+      // This is a temporary solution if S3 is not configured
       const arrayBuffer = await file.arrayBuffer();
       const base64 = Buffer.from(arrayBuffer).toString("base64");
       const dataUrl = `data:${file.type};base64,${base64}`;
