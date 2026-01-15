@@ -66,8 +66,8 @@ model GameSettings {
   stickyButtonCustomUrls  Json?
   stickyButtonShowOnDesktop Boolean @default(true)
   stickyButtonShowOnMobile Boolean  @default(false)
-  logoUrl                 String?
-  logoUrlMobile           String?
+  logoUrl                 String?  @db.Text
+  logoUrlMobile           String?  @db.Text
   logoScale               Int      @default(100)
   logoScaleMobile         Int      @default(100)
   logoHeightDesktop       String   @default("small")
