@@ -105,7 +105,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
 
       const url = await getSignedUrl(s3Client, getCommand, {
-        expiresIn: 365 * 24 * 60 * 60, // 1 year in seconds
+        expiresIn: 7 * 24 * 60 * 60, // 1 year in seconds
       });
 
       return Response.json({ url }, { headers: corsHeaders });
