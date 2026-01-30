@@ -46,27 +46,27 @@ class BouncingBallGame {
         
         // Read text settings from URL
         this.textSettings = {
-            secondaryText: urlParams.get('secondaryText') || 'Discount:',
+            secondaryText: urlParams.has('secondaryText') ? urlParams.get('secondaryText') : 'Discount:',
             secondaryTextColor: urlParams.get('secondaryTextColor') || '#000000',
             secondaryTextSize: urlParams.get('secondaryTextSize') || '18',
             secondaryTextWeight: urlParams.get('secondaryTextWeight') || '400',
-            rulesText: urlParams.get('rulesText') || '1 Score - 1% Discount',
+            rulesText: urlParams.has('rulesText') ? urlParams.get('rulesText') : '1 Score - 1% Discount',
             rulesTextColor: urlParams.get('rulesTextColor') || '#000000',
             rulesTextSize: urlParams.get('rulesTextSize') || '14',
             rulesTextWeight: urlParams.get('rulesTextWeight') || '400',
-            instructionText: urlParams.get('instructionText') || 'Click to bounce',
+            instructionText: urlParams.has('instructionText') ? urlParams.get('instructionText') : 'Click to bounce',
             instructionTextColor: urlParams.get('instructionTextColor') || '#000000',
             instructionTextSize: urlParams.get('instructionTextSize') || '16',
             instructionTextWeight: urlParams.get('instructionTextWeight') || '400',
-            gameEndText: urlParams.get('gameEndText') || 'Your Discount',
+            gameEndText: urlParams.has('gameEndText') ? urlParams.get('gameEndText') : 'Your Discount',
             gameEndTextColor: urlParams.get('gameEndTextColor') || '#000000',
             gameEndTextSize: urlParams.get('gameEndTextSize') || '20',
             gameEndTextWeight: urlParams.get('gameEndTextWeight') || '400',
-            buttonText: urlParams.get('buttonText') || 'Play Again',
+            buttonText: urlParams.has('buttonText') ? urlParams.get('buttonText') : 'Play Again',
             buttonTextColor: urlParams.get('buttonTextColor') || '#ffffff',
             buttonTextSize: urlParams.get('buttonTextSize') || '16',
             buttonTextWeight: urlParams.get('buttonTextWeight') || '500',
-            claimBestButtonText: urlParams.get('claimBestButtonText') || 'Claim Best Discount',
+            claimBestButtonText: urlParams.has('claimBestButtonText') ? urlParams.get('claimBestButtonText') : 'Claim Best Discount',
             claimBestButtonTextColor: urlParams.get('claimBestButtonTextColor') || '#ffffff',
             claimBestButtonTextSize: urlParams.get('claimBestButtonTextSize') || '16',
             claimBestButtonTextWeight: urlParams.get('claimBestButtonTextWeight') || '500',
@@ -74,19 +74,19 @@ class BouncingBallGame {
             buttonBgColor: urlParams.get('buttonBgColor') || '#000000',
             claimBestButtonBgColor: urlParams.get('claimBestButtonBgColor') || '#000000',
             // Email Modal Settings
-            emailModalHeadingText: urlParams.get('emailModalHeadingText') || 'Enter Your Email',
+            emailModalHeadingText: urlParams.has('emailModalHeadingText') ? urlParams.get('emailModalHeadingText') : 'Enter Your Email',
             emailModalHeadingColor: urlParams.get('emailModalHeadingColor') || '#333333',
             emailModalHeadingSize: urlParams.get('emailModalHeadingSize') || '20',
             emailModalHeadingWeight: urlParams.get('emailModalHeadingWeight') || '600',
-            emailModalDescriptionText: urlParams.get('emailModalDescriptionText') || 'Please enter your email to claim your discount:',
+            emailModalDescriptionText: urlParams.has('emailModalDescriptionText') ? urlParams.get('emailModalDescriptionText') : 'Please enter your email to claim your discount:',
             emailModalDescriptionColor: urlParams.get('emailModalDescriptionColor') || '#333333',
             emailModalDescriptionSize: urlParams.get('emailModalDescriptionSize') || '14',
             emailModalDescriptionWeight: urlParams.get('emailModalDescriptionWeight') || '400',
-            emailModalSubmitText: urlParams.get('emailModalSubmitText') || 'Submit',
+            emailModalSubmitText: urlParams.has('emailModalSubmitText') ? urlParams.get('emailModalSubmitText') : 'Submit',
             emailModalSubmitColor: urlParams.get('emailModalSubmitColor') || '#ffffff',
             emailModalSubmitSize: urlParams.get('emailModalSubmitSize') || '16',
             emailModalSubmitWeight: urlParams.get('emailModalSubmitWeight') || '500',
-            emailModalCancelText: urlParams.get('emailModalCancelText') || 'Cancel',
+            emailModalCancelText: urlParams.has('emailModalCancelText') ? urlParams.get('emailModalCancelText') : 'Cancel',
             emailModalCancelColor: urlParams.get('emailModalCancelColor') || '#333333',
             emailModalCancelSize: urlParams.get('emailModalCancelSize') || '16',
             emailModalCancelWeight: urlParams.get('emailModalCancelWeight') || '500',
@@ -94,17 +94,17 @@ class BouncingBallGame {
             emailModalSubmitBgColor: urlParams.get('emailModalSubmitBgColor') || '#000000',
             emailModalCancelBgColor: urlParams.get('emailModalCancelBgColor') || '#cccccc',
             // Discount Code Modal Settings
-            discountModalHeadingText: urlParams.get('discountModalHeadingText') || 'Your Discount Code',
+            discountModalHeadingText: urlParams.has('discountModalHeadingText') ? urlParams.get('discountModalHeadingText') : 'Your Discount Code',
             discountModalHeadingColor: urlParams.get('discountModalHeadingColor') || '#333333',
             discountModalHeadingSize: urlParams.get('discountModalHeadingSize') || '20',
             discountModalHeadingWeight: urlParams.get('discountModalHeadingWeight') || '600',
-            discountModalCloseText: urlParams.get('discountModalCloseText') || 'Close',
+            discountModalCloseText: urlParams.has('discountModalCloseText') ? urlParams.get('discountModalCloseText') : 'Close',
             discountModalCloseColor: urlParams.get('discountModalCloseColor') || '#ffffff',
             discountModalCloseSize: urlParams.get('discountModalCloseSize') || '16',
             discountModalCloseWeight: urlParams.get('discountModalCloseWeight') || '500',
             discountModalBgColor: urlParams.get('discountModalBgColor') || '#ffffff',
             discountModalCloseBgColor: urlParams.get('discountModalCloseBgColor') || '#000000',
-            discountModalDescriptionText: urlParams.get('discountModalDescriptionText') || 'Copy your code and use it at checkout',
+            discountModalDescriptionText: urlParams.has('discountModalDescriptionText') ? urlParams.get('discountModalDescriptionText') : 'Copy your code and use it at checkout',
             discountModalDescriptionColor: urlParams.get('discountModalDescriptionColor') || '#333333',
             discountModalDescriptionSize: urlParams.get('discountModalDescriptionSize') || '14',
             discountModalDescriptionWeight: urlParams.get('discountModalDescriptionWeight') || '400',
@@ -187,6 +187,20 @@ class BouncingBallGame {
         this.setupCanvas();
         this.init();
         this.applyTextSettings();
+
+        // Allow the parent storefront page to force "claimed code" view on reopen.
+        window.addEventListener('message', (event) => {
+            const data = event?.data;
+            if (!data || typeof data !== 'object') return;
+            if (data.type === 'showClaimedCode') {
+                const payload = data.payload || {};
+                const discountCode = payload.discountCode || '';
+                const percentage = typeof payload.percentage === 'number' ? payload.percentage : null;
+                if (discountCode) {
+                    this.showClaimedCode(discountCode, percentage);
+                }
+            }
+        });
     }
     
     applyTextSettings() {
@@ -1748,6 +1762,20 @@ class BouncingBallGame {
             const data = await response.json();
             
             if (data.success && data.discountCode) {
+                // Notify parent so it can persist the claimed discount for 24h (on the shop domain).
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage(
+                        {
+                            type: 'discountClaimed',
+                            payload: {
+                                discountCode: data.discountCode,
+                                percentage: this.bestScore,
+                            },
+                        },
+                        '*'
+                    );
+                }
+
                 // Hide email modal first (before showing discount modal)
                 const emailModal = document.getElementById('emailModal');
                 if (emailModal) {
@@ -1894,6 +1922,62 @@ class BouncingBallGame {
             console.error('Error calling discount API:', error);
             alert('An error occurred while generating your discount code. Please try again.');
             return { duplicateEmail: false, error: 'An error occurred while generating your discount code. Please try again.' };
+        }
+    }
+
+    showClaimedCode(discountCode, percentage = null) {
+        // Ensure no "results / replay" UI is visible underneath.
+        const gameOver = document.getElementById('gameOver');
+        if (gameOver) {
+            gameOver.style.display = 'none';
+        }
+        const startMessage = document.getElementById('startMessage');
+        if (startMessage) {
+            startMessage.style.display = 'none';
+        }
+
+        // Display the discount code modal as the only actionable UI.
+        const discountModal = document.getElementById('discountCodeModal');
+        const discountCodeText = document.getElementById('discountCodeText');
+        const discountCodeCloseBtn = document.getElementById('discountCodeCloseBtn');
+
+        if (discountModal && discountCodeText) {
+            this.applyDiscountModalSettings();
+            discountCodeText.value = discountCode;
+
+            const discountCodeDescription = document.getElementById('discountCodeDescription');
+            if (discountCodeDescription) {
+                discountCodeDescription.textContent = this.textSettings.discountModalDescriptionText;
+            }
+
+            if (typeof percentage === 'number') {
+                this.bestScore = percentage;
+                const finalScore = document.getElementById('finalScore');
+                if (finalScore) finalScore.textContent = String(percentage);
+            }
+
+            discountModal.style.display = 'flex';
+
+            const copyBtn = document.getElementById('discountCodeCopyBtn');
+            if (copyBtn) {
+                copyBtn.onclick = async () => {
+                    try {
+                        await navigator.clipboard.writeText(discountCodeText.value);
+                    } catch (err) {
+                        discountCodeText.select();
+                        document.execCommand('copy');
+                    }
+                };
+            }
+
+            if (discountCodeCloseBtn) {
+                discountCodeCloseBtn.onclick = () => {
+                    discountModal.style.display = 'none';
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage('closeGamePopup', '*');
+                    }
+                };
+            }
         }
     }
 

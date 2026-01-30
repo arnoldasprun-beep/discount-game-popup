@@ -172,19 +172,90 @@
 </style>
 
   <script>
-    // Listen for messages from iframe to close popup
-    window.addEventListener('message', function(event) {
-      if (event.data === 'closeGamePopup') {
-        const container = document.getElementById('game-popup-container');
-        if (container) {
-          container.style.display = 'none';
-        }
-      }
-    });
-
     (function() {
       const shop = '{{ shop.permanent_domain }}';
       const appUrl = 'https://discount-game-popup-production.up.railway.app';
+
+      // Persist "claimed discount" state for 24h on the SHOP's domain (not the iframe domain).
+      // This lets us reopen the popup and immediately show the same discount code screen,
+      // without allowing replay/claim again via UI.
+      const CLAIM_STORAGE_KEY = 'game-popup-claimed-' + shop;
+      const CLAIM_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+      function readClaimState() {
+        try {
+          const raw = localStorage.getItem(CLAIM_STORAGE_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== 'object') return null;
+          if (typeof parsed.expiresAt !== 'number') return null;
+          if (Date.now() >= parsed.expiresAt) {
+            localStorage.removeItem(CLAIM_STORAGE_KEY);
+            return null;
+          }
+          return parsed;
+        } catch (e) {
+          // Corrupted value; clear it.
+          try { localStorage.removeItem(CLAIM_STORAGE_KEY); } catch (_) {}
+          return null;
+        }
+      }
+
+      function writeClaimState(payload) {
+        const state = {
+          discountCode: payload?.discountCode || '',
+          percentage: typeof payload?.percentage === 'number' ? payload.percentage : null,
+          claimedAt: Date.now(),
+          expiresAt: Date.now() + CLAIM_TTL_MS,
+        };
+        try {
+          localStorage.setItem(CLAIM_STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+          // Ignore storage failures (private mode, full storage, etc.)
+        }
+      }
+
+      function sendClaimStateToIframeIfPresent(gameIframe) {
+        const claim = readClaimState();
+        if (!claim || !claim.discountCode) return;
+        if (!gameIframe || !gameIframe.contentWindow) return;
+
+        // Tell the iframe to show ONLY the discount code modal (no results/replay underneath).
+        gameIframe.contentWindow.postMessage(
+          {
+            type: 'showClaimedCode',
+            payload: {
+              discountCode: claim.discountCode,
+              percentage: claim.percentage,
+            },
+          },
+          '*'
+        );
+      }
+
+      // Listen for messages from iframe
+      window.addEventListener('message', function(event) {
+        // Existing close signal
+        if (event.data === 'closeGamePopup') {
+          const container = document.getElementById('game-popup-container');
+          if (container) {
+            container.style.display = 'none';
+          }
+          // Treat "Continue shopping" (iframe-close) the same as dismissing via X/overlay:
+          // suppress auto-popup for the rest of the day.
+          const today = new Date().toDateString();
+          localStorage.setItem('game-popup-dismissed-' + shop, today);
+          return;
+        }
+
+        // New structured messages
+        if (event && event.data && typeof event.data === 'object') {
+          const msg = event.data;
+          if (msg.type === 'discountClaimed') {
+            writeClaimState(msg.payload);
+          }
+        }
+      });
       
       // Generate unique sessionId for this popup instance
       function generateSessionId() {
@@ -232,7 +303,7 @@
           const popupDisplayPage = data.popupDisplayPage || 'any';
           const popupCustomUrls = data.popupCustomUrls || [];
           const popupText = data.popupText || 'Discount Game';
-          const mainText = data.mainText || 'Discount Game';
+          const mainText = data.mainText != null ? data.mainText : 'Discount Game';
           const mainTextColor = data.mainTextColor || '#000000';
           const mainTextSize = data.mainTextSize || '24';
           const mainTextBgColor = data.mainTextBgColor || '#ffffff';
@@ -247,7 +318,7 @@
           const gameDifficulty = data.gameDifficulty !== undefined ? data.gameDifficulty : 50;
           const maxDiscount = data.maxDiscount || '100';
           const countdownTime = data.countdownTime !== undefined ? data.countdownTime : 10;
-          const claimBestButtonText = data.claimBestButtonText || 'Claim Best Discount';
+          const claimBestButtonText = data.claimBestButtonText != null ? data.claimBestButtonText : 'Claim Best Discount';
           const claimBestButtonTextColor = data.claimBestButtonTextColor || '#ffffff';
           const claimBestButtonTextSize = data.claimBestButtonTextSize || '16';
           const claimBestButtonTextWeight = data.claimBestButtonTextWeight || '500';
@@ -504,31 +575,31 @@
               '&gameEndBorderRadius=' + encodeURIComponent(gameEndBorderRadius) +
               '&emailModalBorderRadius=' + encodeURIComponent(emailModalBorderRadius) +
               '&discountModalBorderRadius=' + encodeURIComponent(discountModalBorderRadius) +
-              '&mainText=' + encodeURIComponent(data.mainText || 'Discount Game') +
+              '&mainText=' + encodeURIComponent(data.mainText != null ? data.mainText : 'Discount Game') +
               '&mainTextSize=' + encodeURIComponent(data.mainTextSize || '24') +
               '&mainTextColor=' + encodeURIComponent(data.mainTextColor || '#000000') +
               '&mainTextBgColor=' + encodeURIComponent(data.mainTextBgColor || '#ffffff') +
-              '&secondaryText=' + encodeURIComponent(data.secondaryText || 'Discount:') +
+              '&secondaryText=' + encodeURIComponent(data.secondaryText != null ? data.secondaryText : 'Discount:') +
               '&secondaryTextColor=' + encodeURIComponent(data.secondaryTextColor || '#000000') +
               '&secondaryTextSize=' + encodeURIComponent(data.secondaryTextSize || '18') +
               '&secondaryTextWeight=' + encodeURIComponent(data.secondaryTextWeight || '400') +
-              '&rulesText=' + encodeURIComponent(data.rulesText || '1 Score - 1% Discount') +
+              '&rulesText=' + encodeURIComponent(data.rulesText != null ? data.rulesText : '1 Score - 1% Discount') +
               '&rulesTextColor=' + encodeURIComponent(data.rulesTextColor || '#000000') +
               '&rulesTextSize=' + encodeURIComponent(data.rulesTextSize || '14') +
               '&rulesTextWeight=' + encodeURIComponent(data.rulesTextWeight || '400') +
-              '&instructionText=' + encodeURIComponent(data.instructionText || 'Click to Bounce') +
+              '&instructionText=' + encodeURIComponent(data.instructionText != null ? data.instructionText : 'Click to Bounce') +
               '&instructionTextColor=' + encodeURIComponent(data.instructionTextColor || '#000000') +
               '&instructionTextSize=' + encodeURIComponent(data.instructionTextSize || '16') +
               '&instructionTextWeight=' + encodeURIComponent(data.instructionTextWeight || '400') +
-              '&gameEndText=' + encodeURIComponent(data.gameEndText || 'Your Discount') +
+              '&gameEndText=' + encodeURIComponent(data.gameEndText != null ? data.gameEndText : 'Your Discount') +
               '&gameEndTextColor=' + encodeURIComponent(data.gameEndTextColor || '#000000') +
               '&gameEndTextSize=' + encodeURIComponent(data.gameEndTextSize || '20') +
               '&gameEndTextWeight=' + encodeURIComponent(data.gameEndTextWeight || '400') +
-              '&buttonText=' + encodeURIComponent(data.buttonText || 'Play Again') +
+              '&buttonText=' + encodeURIComponent(data.buttonText != null ? data.buttonText : 'Play Again') +
               '&buttonTextColor=' + encodeURIComponent(data.buttonTextColor || '#ffffff') +
               '&buttonTextSize=' + encodeURIComponent(data.buttonTextSize || '16') +
               '&buttonTextWeight=' + encodeURIComponent(data.buttonTextWeight || '500') +
-              '&claimBestButtonText=' + encodeURIComponent(data.claimBestButtonText || 'Claim Best Discount') +
+              '&claimBestButtonText=' + encodeURIComponent(data.claimBestButtonText != null ? data.claimBestButtonText : 'Claim Best Discount') +
               '&claimBestButtonTextColor=' + encodeURIComponent(data.claimBestButtonTextColor || '#ffffff') +
               '&claimBestButtonTextSize=' + encodeURIComponent(data.claimBestButtonTextSize || '16') +
               '&claimBestButtonTextWeight=' + encodeURIComponent(data.claimBestButtonTextWeight || '500') +
@@ -539,19 +610,19 @@
               '&requireName=' + encodeURIComponent(requireName ? 'true' : 'false') +
               '&shop=' + encodeURIComponent(shop) +
               // Email Modal Settings
-              '&emailModalHeadingText=' + encodeURIComponent(data.emailModalHeadingText || 'Enter Your Email') +
+              '&emailModalHeadingText=' + encodeURIComponent(data.emailModalHeadingText != null ? data.emailModalHeadingText : 'Enter Your Email') +
               '&emailModalHeadingColor=' + encodeURIComponent(data.emailModalHeadingColor || '#333333') +
               '&emailModalHeadingSize=' + encodeURIComponent(data.emailModalHeadingSize || '20') +
               '&emailModalHeadingWeight=' + encodeURIComponent(data.emailModalHeadingWeight || '600') +
-              '&emailModalDescriptionText=' + encodeURIComponent(data.emailModalDescriptionText || 'Please enter your email to claim your discount:') +
+              '&emailModalDescriptionText=' + encodeURIComponent(data.emailModalDescriptionText != null ? data.emailModalDescriptionText : 'Please enter your email to claim your discount:') +
               '&emailModalDescriptionColor=' + encodeURIComponent(data.emailModalDescriptionColor || '#333333') +
               '&emailModalDescriptionSize=' + encodeURIComponent(data.emailModalDescriptionSize || '14') +
               '&emailModalDescriptionWeight=' + encodeURIComponent(data.emailModalDescriptionWeight || '400') +
-              '&emailModalSubmitText=' + encodeURIComponent(data.emailModalSubmitText || 'Submit') +
+              '&emailModalSubmitText=' + encodeURIComponent(data.emailModalSubmitText != null ? data.emailModalSubmitText : 'Submit') +
               '&emailModalSubmitColor=' + encodeURIComponent(data.emailModalSubmitColor || '#ffffff') +
               '&emailModalSubmitSize=' + encodeURIComponent(data.emailModalSubmitSize || '16') +
               '&emailModalSubmitWeight=' + encodeURIComponent(data.emailModalSubmitWeight || '500') +
-              '&emailModalCancelText=' + encodeURIComponent(data.emailModalCancelText || 'Cancel') +
+              '&emailModalCancelText=' + encodeURIComponent(data.emailModalCancelText != null ? data.emailModalCancelText : 'Cancel') +
               '&emailModalCancelColor=' + encodeURIComponent(data.emailModalCancelColor || '#333333') +
               '&emailModalCancelSize=' + encodeURIComponent(data.emailModalCancelSize || '16') +
               '&emailModalCancelWeight=' + encodeURIComponent(data.emailModalCancelWeight || '500') +
@@ -559,23 +630,29 @@
               '&emailModalSubmitBgColor=' + encodeURIComponent(data.emailModalSubmitBgColor || '#000000') +
               '&emailModalCancelBgColor=' + encodeURIComponent(data.emailModalCancelBgColor || '#cccccc') +
               // Discount Code Modal Settings
-              '&discountModalHeadingText=' + encodeURIComponent(data.discountModalHeadingText || 'Your Discount Code') +
+              '&discountModalHeadingText=' + encodeURIComponent(data.discountModalHeadingText != null ? data.discountModalHeadingText : 'Your Discount Code') +
               '&discountModalHeadingColor=' + encodeURIComponent(data.discountModalHeadingColor || '#333333') +
               '&discountModalHeadingSize=' + encodeURIComponent(data.discountModalHeadingSize || '20') +
               '&discountModalHeadingWeight=' + encodeURIComponent(data.discountModalHeadingWeight || '600') +
-              '&discountModalCloseText=' + encodeURIComponent(data.discountModalCloseText || 'Close') +
+              '&discountModalCloseText=' + encodeURIComponent(data.discountModalCloseText != null ? data.discountModalCloseText : 'Continue Shopping') +
               '&discountModalCloseColor=' + encodeURIComponent(data.discountModalCloseColor || '#ffffff') +
               '&discountModalCloseSize=' + encodeURIComponent(data.discountModalCloseSize || '16') +
               '&discountModalCloseWeight=' + encodeURIComponent(data.discountModalCloseWeight || '500') +
               '&discountModalBgColor=' + encodeURIComponent(data.discountModalBgColor || '#ffffff') +
               '&discountModalCloseBgColor=' + encodeURIComponent(data.discountModalCloseBgColor || '#000000') +
-              '&discountModalDescriptionText=' + encodeURIComponent(data.discountModalDescriptionText || 'Copy your code and use it at checkout') +
+              '&discountModalDescriptionText=' + encodeURIComponent(data.discountModalDescriptionText != null ? data.discountModalDescriptionText : 'Copy your code and use it at checkout') +
               '&discountModalDescriptionColor=' + encodeURIComponent(data.discountModalDescriptionColor || '#333333') +
               '&discountModalDescriptionSize=' + encodeURIComponent(data.discountModalDescriptionSize || '14') +
               '&discountModalDescriptionWeight=' + encodeURIComponent(data.discountModalDescriptionWeight || '400') +
               (gameType === 'reaction-click' ? '&countdownTime=' + encodeURIComponent(countdownTime) : '');
             if (gameIframe) {
               gameIframe.src = gamePath;
+
+              // If a claim exists (within 24h), force the iframe into "claimed code" mode
+              // once it is ready. This also helps in cases where the iframe is freshly loaded.
+              gameIframe.addEventListener('load', () => {
+                sendClaimStateToIframeIfPresent(gameIframe);
+              });
             }
 
             // Show game directly (no email required before playing)
@@ -694,6 +771,10 @@
                     if (container) {
                       container.style.display = 'block';
                     }
+
+                    // If claimed within 24h, force the code modal view on reopen.
+                    const gameIframe = document.getElementById('game-iframe');
+                    sendClaimStateToIframeIfPresent(gameIframe);
                   }
                 });
                 
@@ -724,6 +805,10 @@
               if (container) {
                 container.style.display = 'block';
               }
+
+              // If claimed within 24h, force the code modal view on auto-open too.
+              const gameIframe = document.getElementById('game-iframe');
+              sendClaimStateToIframeIfPresent(gameIframe);
             }, delayMs);
           }
         })

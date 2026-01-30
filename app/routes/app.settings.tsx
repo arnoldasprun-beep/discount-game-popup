@@ -230,32 +230,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const countdownTime = isNaN(countdownTimeValue) ? 10 : countdownTimeValue;
 
     // Text settings
-    const mainText = (formData.get("mainText") as string) || "Discount Game";
+    const mainText = formData.has("mainText") ? (formData.get("mainText") as string) : "Discount Game";
     const mainTextSize = (formData.get("mainTextSize") as string) || "24";
     const mainTextColor = (formData.get("mainTextColor") as string) || "#000000";
     const mainTextBgColor = (formData.get("mainTextBgColor") as string) || "#ffffff";
     const mainTextWeight = (formData.get("mainTextWeight") as string) || "600";
-    const secondaryText = (formData.get("secondaryText") as string) || "Discount:";
+    const secondaryText = formData.has("secondaryText") ? (formData.get("secondaryText") as string) : "Discount:";
     const secondaryTextColor = (formData.get("secondaryTextColor") as string) || "#000000";
     const secondaryTextSize = (formData.get("secondaryTextSize") as string) || "18";
     const secondaryTextWeight = (formData.get("secondaryTextWeight") as string) || "400";
-    const rulesText = (formData.get("rulesText") as string) || "1 Score - 1% Discount";
+    const rulesText = formData.has("rulesText") ? (formData.get("rulesText") as string) : "1 Score - 1% Discount";
     const rulesTextColor = (formData.get("rulesTextColor") as string) || "#000000";
     const rulesTextSize = (formData.get("rulesTextSize") as string) || "14";
     const rulesTextWeight = (formData.get("rulesTextWeight") as string) || "400";
-    const instructionText = (formData.get("instructionText") as string) || "Click to Bounce";
+    const instructionText = formData.has("instructionText") ? (formData.get("instructionText") as string) : "Click to Bounce";
     const instructionTextColor = (formData.get("instructionTextColor") as string) || "#000000";
     const instructionTextSize = (formData.get("instructionTextSize") as string) || "16";
     const instructionTextWeight = (formData.get("instructionTextWeight") as string) || "400";
-    const gameEndText = (formData.get("gameEndText") as string) || "Your Discount";
+    const gameEndText = formData.has("gameEndText") ? (formData.get("gameEndText") as string) : "Your Discount";
     const gameEndTextColor = (formData.get("gameEndTextColor") as string) || "#000000";
     const gameEndTextSize = (formData.get("gameEndTextSize") as string) || "20";
     const gameEndTextWeight = (formData.get("gameEndTextWeight") as string) || "400";
-    const buttonText = (formData.get("buttonText") as string) || "Play Again";
+    const buttonText = formData.has("buttonText") ? (formData.get("buttonText") as string) : "Play Again";
     const buttonTextColor = (formData.get("buttonTextColor") as string) || "#ffffff";
     const buttonTextSize = (formData.get("buttonTextSize") as string) || "16";
     const buttonTextWeight = (formData.get("buttonTextWeight") as string) || "500";
-    const claimBestButtonText = (formData.get("claimBestButtonText") as string) || "Claim Best Discount";
+    const claimBestButtonText = formData.has("claimBestButtonText") ? (formData.get("claimBestButtonText") as string) : "Claim Best Discount";
     const claimBestButtonTextColor = (formData.get("claimBestButtonTextColor") as string) || "#ffffff";
     const claimBestButtonTextSize = (formData.get("claimBestButtonTextSize") as string) || "16";
     const claimBestButtonTextWeight = (formData.get("claimBestButtonTextWeight") as string) || "500";
@@ -264,19 +264,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const claimBestButtonBgColor = (formData.get("claimBestButtonBgColor") as string) || "#000000";
 
     // Email Modal Settings
-    const emailModalHeadingText = (formData.get("emailModalHeadingText") as string) || "Enter Your Email";
+    const emailModalHeadingText = formData.has("emailModalHeadingText") ? (formData.get("emailModalHeadingText") as string) : "Enter Your Email";
     const emailModalHeadingColor = (formData.get("emailModalHeadingColor") as string) || "#333333";
     const emailModalHeadingSize = (formData.get("emailModalHeadingSize") as string) || "20";
     const emailModalHeadingWeight = (formData.get("emailModalHeadingWeight") as string) || "600";
-    const emailModalDescriptionText = (formData.get("emailModalDescriptionText") as string) || "Please enter your email to claim your discount:";
+    const emailModalDescriptionText = formData.has("emailModalDescriptionText") ? (formData.get("emailModalDescriptionText") as string) : "Please enter your email to claim your discount:";
     const emailModalDescriptionColor = (formData.get("emailModalDescriptionColor") as string) || "#333333";
     const emailModalDescriptionSize = (formData.get("emailModalDescriptionSize") as string) || "14";
     const emailModalDescriptionWeight = (formData.get("emailModalDescriptionWeight") as string) || "400";
-    const emailModalSubmitText = (formData.get("emailModalSubmitText") as string) || "Submit";
+    const emailModalSubmitText = formData.has("emailModalSubmitText") ? (formData.get("emailModalSubmitText") as string) : "Submit";
     const emailModalSubmitColor = (formData.get("emailModalSubmitColor") as string) || "#ffffff";
     const emailModalSubmitSize = (formData.get("emailModalSubmitSize") as string) || "16";
     const emailModalSubmitWeight = (formData.get("emailModalSubmitWeight") as string) || "500";
-    const emailModalCancelText = (formData.get("emailModalCancelText") as string) || "Cancel";
+    const emailModalCancelText = formData.has("emailModalCancelText") ? (formData.get("emailModalCancelText") as string) : "Cancel";
     const emailModalCancelColor = (formData.get("emailModalCancelColor") as string) || "#333333";
     const emailModalCancelSize = (formData.get("emailModalCancelSize") as string) || "16";
     const emailModalCancelWeight = (formData.get("emailModalCancelWeight") as string) || "500";
@@ -285,17 +285,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const emailModalCancelBgColor = (formData.get("emailModalCancelBgColor") as string) || "#cccccc";
 
     // Discount Code Modal Settings
-    const discountModalHeadingText = (formData.get("discountModalHeadingText") as string) || "Your Discount Code";
+    const discountModalHeadingText = formData.has("discountModalHeadingText") ? (formData.get("discountModalHeadingText") as string) : "Your Discount Code";
     const discountModalHeadingColor = (formData.get("discountModalHeadingColor") as string) || "#333333";
     const discountModalHeadingSize = (formData.get("discountModalHeadingSize") as string) || "20";
     const discountModalHeadingWeight = (formData.get("discountModalHeadingWeight") as string) || "600";
-    const discountModalCloseText = (formData.get("discountModalCloseText") as string) || "Continue Shopping";
+    const discountModalCloseText = formData.has("discountModalCloseText") ? (formData.get("discountModalCloseText") as string) : "Continue Shopping";
     const discountModalCloseColor = (formData.get("discountModalCloseColor") as string) || "#ffffff";
     const discountModalCloseSize = (formData.get("discountModalCloseSize") as string) || "16";
     const discountModalCloseWeight = (formData.get("discountModalCloseWeight") as string) || "500";
     const discountModalBgColor = (formData.get("discountModalBgColor") as string) || "#ffffff";
     const discountModalCloseBgColor = (formData.get("discountModalCloseBgColor") as string) || "#000000";
-    const discountModalDescriptionText = (formData.get("discountModalDescriptionText") as string) || "Copy your code and use it at checkout";
+    const discountModalDescriptionText = formData.has("discountModalDescriptionText") ? (formData.get("discountModalDescriptionText") as string) : "Copy your code and use it at checkout";
     const discountModalDescriptionColor = (formData.get("discountModalDescriptionColor") as string) || "#333333";
     const discountModalDescriptionSize = (formData.get("discountModalDescriptionSize") as string) || "14";
     const discountModalDescriptionWeight = (formData.get("discountModalDescriptionWeight") as string) || "400";
@@ -1742,7 +1742,7 @@ export default function Settings() {
     setDiscountModalDescriptionColor(current.discountModalDescriptionColor ?? "#333333");
     setDiscountModalDescriptionSize(current.discountModalDescriptionSize ?? "14");
     setDiscountModalDescriptionWeight(current.discountModalDescriptionWeight ?? "400");
-  }, [selectedGame, settings.bouncingBallSettings, settings.horizontalLinesSettings, settings.reactionClickSettings]);
+  }, [selectedGame, settings.bouncingBallSettings, settings.horizontalLinesSettings, settings.reactionClickSettings, fetcher.data?.success]);
 
   useEffect(() => {
     if (fetcher.data?.success) {
@@ -3258,13 +3258,13 @@ export default function Settings() {
               <div style={{ marginTop: '0px' }}>
                 <Card>
                   <BlockStack gap="400">
-                    {/* Email Modal Section */}
-                    <div style={{ textAlign: "center", marginBottom: "-6px" }}>
-                      <Text variant="headingLg" as="h2">Claim Form Window</Text>
-                    </div>
-                    
-                    {/* Email Modal Heading - 4 column grid */}
-                    <div style={{ marginTop: '6px' }}>
+                    {(requireEmailToClaim || requireName) && (
+                      <>
+                        <div style={{ textAlign: "center", marginBottom: "-6px" }}>
+                          <Text variant="headingLg" as="h2">Claim Form Window</Text>
+                        </div>
+
+                        <div style={{ marginTop: '6px' }}>
                       <BlockStack gap="300">
                         <InlineGrid columns={4} gap="400">
                           <BlockStack gap="100">
@@ -3526,6 +3526,8 @@ export default function Settings() {
                         </InlineGrid>
                       </BlockStack>
                     </div>
+                      </>
+                    )}
 
                     {/* Discount Code Modal Section */}
                     <div style={{ textAlign: "center", marginBottom: "-6px", marginTop: '6px' }}>
@@ -3966,11 +3968,11 @@ export default function Settings() {
                 textAlign: 'center'
               }}>
                 <BlockStack gap="300">
-                  <Text variant="bodyLg" as="p" fontWeight="semibold">
-                    Start showing your discount game pop up
+                  <Text variant="headingLg" as="h2">
+                    Start Showing Discount Game Popup
                   </Text>
                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '14px', color: isActive ? '#4caf50' : '#666', fontWeight: '500' }}>
+                    <span style={{ fontSize: '16px', color: isActive ? '#4caf50' : '#666', fontWeight: '700' }}>
                       {isActive ? 'ON' : 'OFF'}
                     </span>
                     <label style={{ 
@@ -4026,7 +4028,7 @@ export default function Settings() {
           </div>
 
           {/* Submit Button */}
-          <div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
             <Button
               submit
               variant="primary"

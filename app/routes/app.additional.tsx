@@ -21,11 +21,54 @@ import {
   Spinner,
   Banner,
   EmptyState,
+  Modal,
 } from "@shopify/polaris";
-import { CalendarIcon, ArrowRightIcon } from "@shopify/polaris-icons";
+import { CalendarIcon, ArrowRightIcon, ExportIcon } from "@shopify/polaris-icons";
 import prisma from "../db.server";
 import { useLoaderData, useSearchParams, useFetcher, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
+
+type ClaimForExport = {
+  id: string;
+  email: string;
+  name: string;
+  discountWon: string;
+  gameType: string;
+  discountCode: string;
+  device: string;
+  difficulty: string;
+};
+
+function escapeCsvField(value: string): string {
+  const s = String(value ?? "");
+  if (/[",\r\n]/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function exportSubscribersToCsv(claims: ClaimForExport[]) {
+  const headers = ["Email", "Name", "Discount Won", "Game", "Difficulty", "Device", "Discount Code"];
+  const rows = claims.map((c) =>
+    [
+      escapeCsvField(c.email),
+      escapeCsvField(c.name),
+      escapeCsvField(c.discountWon),
+      escapeCsvField(c.gameType),
+      escapeCsvField(c.difficulty),
+      escapeCsvField(c.device),
+      escapeCsvField(c.discountCode),
+    ].join(",")
+  );
+  const csv = [headers.join(","), ...rows].join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `subscribers-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -210,6 +253,7 @@ export default function AdditionalPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const fetcher = useFetcher();
   const navigate = useNavigate();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -465,24 +509,35 @@ export default function AdditionalPage() {
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
     useIndexResourceState(claims);
 
-  // Handle delete
+  // Open Polaris confirmation modal
   const handleDelete = () => {
     if (selectedResources.length === 0) return;
-    
-    if (confirm(`Are you sure you want to delete ${selectedResources.length} subscriber(s)? This action cannot be undone.`)) {
-      const formData = new FormData();
-      formData.append("intent", "delete");
-      selectedResources.forEach((id) => {
-        formData.append("ids", id);
-      });
-      
-      fetcher.submit(formData, { method: "POST" });
-    }
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedResources.length === 0) return;
+    const formData = new FormData();
+    formData.append("intent", "delete");
+    selectedResources.forEach((id) => {
+      formData.append("ids", id);
+    });
+    fetcher.submit(formData, { method: "POST" });
+  };
+
+  const handleExport = () => {
+    const toExport =
+      allResourcesSelected || selectedResources.length === 0
+        ? claims
+        : claims.filter((c) => selectedResources.includes(c.id));
+    if (toExport.length === 0) return;
+    exportSubscribersToCsv(toExport);
   };
 
   // Refresh page after successful deletion
   useEffect(() => {
     if (fetcher.data?.success) {
+      setDeleteModalOpen(false);
       // Use navigate instead of window.location.reload() to avoid authentication redirects
       navigate(".", { replace: true });
     }
@@ -496,6 +551,24 @@ export default function AdditionalPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [claims.length]);
+
+  // Clear invalid selections after deletion (when selected IDs no longer exist in claims)
+  useEffect(() => {
+    if (selectedResources.length > 0) {
+      const validSelectedIds = selectedResources.filter(id => 
+        claims.some(claim => claim.id === id)
+      );
+      // If any selected IDs are invalid (don't exist in claims), clear them
+      if (validSelectedIds.length !== selectedResources.length) {
+        // Deselect invalid items by calling handleSelectionChange for each invalid ID
+        selectedResources.forEach(id => {
+          if (!claims.some(claim => claim.id === id)) {
+            handleSelectionChange('page', false, id);
+          }
+        });
+      }
+    }
+  }, [claims, selectedResources, handleSelectionChange]);
 
   const rowMarkup = paginatedClaims.map(
     ({ id, email, name, discountWon, gameType, discountCode, device, difficulty }, index) => (
@@ -531,6 +604,33 @@ export default function AdditionalPage() {
   return (
     <Page title="Analytics" fullWidth>
       <BlockStack gap="500">
+        <Modal
+          open={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          title="Delete subscribers"
+          primaryAction={{
+            content: `Delete ${selectedResources.length} subscriber${selectedResources.length === 1 ? "" : "s"}`,
+            destructive: true,
+            loading: isDeleting,
+            onAction: handleConfirmDelete,
+          }}
+          secondaryActions={[
+            {
+              content: "Cancel",
+              onAction: () => setDeleteModalOpen(false),
+              disabled: isDeleting,
+            },
+          ]}
+        >
+          <Modal.Section>
+            <Text as="p">
+              Are you sure you want to delete {selectedResources.length} subscriber
+              {selectedResources.length === 1 ? "" : "s"}? This action cannot be
+              undone.
+            </Text>
+          </Modal.Section>
+        </Modal>
+
         {/* Error Banner */}
         {deleteError && !dismissError && (
           <Banner tone="critical" onDismiss={() => setDismissError(true)}>
@@ -547,8 +647,8 @@ export default function AdditionalPage() {
             </InlineStack>
           </Banner>
         )}
-        {/* Date Range Picker */}
-        <InlineStack align="start">
+        {/* Date Range Picker & Export */}
+        <InlineStack align="start" gap="300">
           <Popover
             active={popoverActive}
             autofocusTarget="none"
@@ -574,13 +674,13 @@ export default function AdditionalPage() {
                   xs: "1fr",
                   md: "max-content max-content",
                 }}
-                gap={0}
+                gap="0"
               >
                 <Box
                   maxWidth="212px"
                   width="212px"
-                  padding={{ xs: 500, md: 0 }}
-                  paddingBlockEnd={{ xs: 100, md: 0 }}
+                  padding={{ xs: "500", md: "0" }}
+                  paddingBlockEnd={{ xs: "100", md: "0" }}
                 >
                   <Scrollable style={{ height: "334px" }}>
                     <OptionList
@@ -588,7 +688,7 @@ export default function AdditionalPage() {
                         value: range.alias,
                         label: range.title,
                       }))}
-                      selected={activeDateRange.alias}
+                      selected={[activeDateRange.alias]}
                       onChange={(value) => {
                         setActiveDateRange(
                           ranges.find((range) => range.alias === value[0]) || ranges[2]
@@ -597,7 +697,7 @@ export default function AdditionalPage() {
                     />
                   </Scrollable>
                 </Box>
-                <Box padding={{ xs: 500 }} maxWidth="516px">
+                <Box padding={{ xs: "500" }} maxWidth="516px">
                   <BlockStack gap="400">
                     <InlineStack gap="200">
                       <div style={{ flexGrow: 1 }}>
@@ -653,14 +753,39 @@ export default function AdditionalPage() {
               </Popover.Section>
             </Popover.Pane>
           </Popover>
+          <div style={{ marginLeft: "auto" }}>
+            <Button
+              variant="primary"
+              size="slim"
+              icon={ExportIcon}
+              onClick={handleExport}
+              disabled={claims.length === 0}
+            >
+              Export
+            </Button>
+          </div>
         </InlineStack>
 
         <InlineGrid columns={{ xs: 1, sm: 2, md: 3, lg: 5 }} gap="400">
           <Card>
             <BlockStack gap="200">
-              <Text variant="headingSm" as="h2">
-                Popup Views
-              </Text>
+              <div
+                style={{
+                  display: "inline-block",
+                  alignSelf: "flex-start",
+                  width: "fit-content",
+                  paddingBottom: "3px",
+                  backgroundImage:
+                    "repeating-linear-gradient(90deg,rgb(236, 236, 236) 0,rgb(236, 236, 236) 2px, transparent 2px, transparent 5px)",
+                  backgroundSize: "100% 2px",
+                  backgroundPosition: "0 100%",
+                  backgroundRepeat: "no-repeat",
+                }}
+              >
+                <Text variant="headingSm" as="h2">
+                  Popup Views
+                </Text>
+              </div>
               <Text variant="headingLg" as="p">
                 {stats.popupViews.toLocaleString()}
               </Text>
@@ -668,9 +793,23 @@ export default function AdditionalPage() {
           </Card>
           <Card>
             <BlockStack gap="200">
-              <Text variant="headingSm" as="h2">
-                Games Played
-              </Text>
+              <div
+                style={{
+                  display: "inline-block",
+                  alignSelf: "flex-start",
+                  width: "fit-content",
+                  paddingBottom: "3px",
+                  backgroundImage:
+                    "repeating-linear-gradient(90deg,rgb(236, 236, 236) 0,rgb(236, 236, 236) 2px, transparent 2px, transparent 5px)",
+                  backgroundSize: "100% 2px",
+                  backgroundPosition: "0 100%",
+                  backgroundRepeat: "no-repeat",
+                }}
+              >
+                <Text variant="headingSm" as="h2">
+                  Games Played
+                </Text>
+              </div>
               <Text variant="headingLg" as="p">
                 {stats.gamesPlayed.toLocaleString()}
               </Text>
@@ -678,9 +817,23 @@ export default function AdditionalPage() {
           </Card>
           <Card>
             <BlockStack gap="200">
-              <Text variant="headingSm" as="h2">
-                Average Discount Win
-              </Text>
+              <div
+                style={{
+                  display: "inline-block",
+                  alignSelf: "flex-start",
+                  width: "fit-content",
+                  paddingBottom: "3px",
+                  backgroundImage:
+                    "repeating-linear-gradient(90deg,rgb(236, 236, 236) 0,rgb(236, 236, 236) 2px, transparent 2px, transparent 5px)",
+                  backgroundSize: "100% 2px",
+                  backgroundPosition: "0 100%",
+                  backgroundRepeat: "no-repeat",
+                }}
+              >
+                <Text variant="headingSm" as="h2">
+                  Average Discount Win
+                </Text>
+              </div>
               <Text variant="headingLg" as="p">
                 {stats.averageDiscountWin}%
               </Text>
@@ -688,9 +841,23 @@ export default function AdditionalPage() {
           </Card>
           <Card>
             <BlockStack gap="200">
-              <Text variant="headingSm" as="h2">
-                Subscribers
-              </Text>
+              <div
+                style={{
+                  display: "inline-block",
+                  alignSelf: "flex-start",
+                  width: "fit-content",
+                  paddingBottom: "3px",
+                  backgroundImage:
+                    "repeating-linear-gradient(90deg,rgb(236, 236, 236) 0,rgb(236, 236, 236) 2px, transparent 2px, transparent 5px)",
+                  backgroundSize: "100% 2px",
+                  backgroundPosition: "0 100%",
+                  backgroundRepeat: "no-repeat",
+                }}
+              >
+                <Text variant="headingSm" as="h2">
+                  Subscribers
+                </Text>
+              </div>
               <Text variant="headingLg" as="p">
                 {stats.subscribers.toLocaleString()}
               </Text>
@@ -698,9 +865,23 @@ export default function AdditionalPage() {
           </Card>
           <Card>
             <BlockStack gap="200">
-              <Text variant="headingSm" as="h2">
-                Conversion Rate
-              </Text>
+              <div
+                style={{
+                  display: "inline-block",
+                  alignSelf: "flex-start",
+                  width: "fit-content",
+                  paddingBottom: "3px",
+                  backgroundImage:
+                    "repeating-linear-gradient(90deg,rgb(236, 236, 236) 0,rgb(236, 236, 236) 2px, transparent 2px, transparent 5px)",
+                  backgroundSize: "100% 2px",
+                  backgroundPosition: "0 100%",
+                  backgroundRepeat: "no-repeat",
+                }}
+              >
+                <Text variant="headingSm" as="h2">
+                  Conversion Rate
+                </Text>
+              </div>
               <Text variant="headingLg" as="p">
                 {stats.conversionRate}%
               </Text>
@@ -717,7 +898,7 @@ export default function AdditionalPage() {
                 allResourcesSelected ? "All" : selectedResources.length
               }
               onSelectionChange={handleSelectionChange}
-              bulkActions={
+              promotedBulkActions={
                 selectedResources.length > 0
                   ? [
                       {

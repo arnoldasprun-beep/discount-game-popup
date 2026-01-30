@@ -322,8 +322,34 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // Use the first active session
-    const session = sessions[0];
+    // Pick a valid session.
+    // Prefer OFFLINE sessions for storefront->server Admin API calls, because online sessions
+    // can expire (often ~24h). Fallback to a non-expired online session if needed.
+    const nowMs = Date.now();
+    const validSessions = sessions.filter((s: any) => {
+      if (!s?.accessToken) return false;
+      if (s.isOnline === true) {
+        // Online sessions must not be expired (if expires is present)
+        if (s.expires) {
+          const expMs = new Date(s.expires).getTime();
+          return !Number.isNaN(expMs) && expMs > nowMs;
+        }
+        // If expires is missing, treat as valid
+        return true;
+      }
+      // Offline sessions: treat as valid if token exists
+      return true;
+    });
+
+    const session =
+      validSessions.find((s: any) => s.isOnline === false) ?? validSessions[0];
+
+    if (!session) {
+      return Response.json(
+        { error: "Store connection expired. Please open the app in Shopify Admin and try again." },
+        { status: 401, headers: corsHeaders }
+      );
+    }
 
     // Check if session has access token
     if (!session.accessToken) {
