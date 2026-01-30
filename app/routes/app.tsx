@@ -8,10 +8,30 @@ import enTranslations from "@shopify/polaris/locales/en.json";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  try {
+    const appHandle = "discount-game-popup";
+    const { billing, redirect, session } = await authenticate.admin(request);
+    const { hasActivePayment } = await billing.check();
 
-  // eslint-disable-next-line no-undef
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+    const shop = session.shop;
+    const storeHandle = shop.replace(".myshopify.com", "");
+
+    if (!hasActivePayment) {
+      return redirect(
+        `https://admin.shopify.com/store/${storeHandle}/charges/${appHandle}/pricing_plans`,
+        { target: "_top" as const }
+      );
+    }
+
+    // eslint-disable-next-line no-undef
+    return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+  } catch (error) {
+    if (error instanceof Response) {
+      throw error;
+    }
+    console.error("Authentication error in /app loader:", error);
+    throw error;
+  }
 };
 
 export default function App() {
